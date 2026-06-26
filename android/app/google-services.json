@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "480600178652",
+    "project_id": "sportquality-b6b25",
+    "storage_bucket": "sportquality-b6b25.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480600178652:android:1ba64fbd52f65b7df01919",
+        "android_client_info": {
+          "package_name": "com.example.pedidos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "480600178652-oqu9onti09bbr3esprsrk0009vqkstnh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmbIh0rv-XOCpGUhSTGwl_TQZVJY3imqM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "480600178652-oqu9onti09bbr3esprsrk0009vqkstnh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "480600178652-4i486lbg0tbujsur051bd5j91i6ajubb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pedidos"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
