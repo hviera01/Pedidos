@@ -17,33 +17,55 @@ class PageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasHeader = title.trim().isNotEmpty || subtitle.trim().isNotEmpty || actions.isNotEmpty;
+
     return Container(
       color: AppTheme.bg,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.all(hasHeader ? 22 : 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              runSpacing: 12,
-              children: [
-                SizedBox(
-                  width: 520,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 4),
-                      Text(subtitle, style: const TextStyle(color: AppTheme.muted)),
-                    ],
-                  ),
-                ),
-                Wrap(spacing: 10, runSpacing: 10, children: actions),
-              ],
-            ),
-            const SizedBox(height: 22),
+            if (hasHeader) ...[
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 12,
+                children: [
+                  if (title.trim().isNotEmpty || subtitle.trim().isNotEmpty)
+                    SizedBox(
+                      width: 520,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (title.trim().isNotEmpty)
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          if (subtitle.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(color: AppTheme.muted),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  if (actions.isNotEmpty)
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: actions,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 22),
+            ],
             child,
           ],
         ),
