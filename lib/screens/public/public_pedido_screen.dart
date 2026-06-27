@@ -32,69 +32,79 @@ class PublicPedidoScreen extends StatelessWidget {
               );
             }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(18),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 980),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: AppTheme.panel,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: AppTheme.border),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 58,
-                              height: 58,
-                              decoration: BoxDecoration(
-                                color: AppTheme.accent.withOpacity(.16),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.checkroom_rounded,
-                                color: AppTheme.accent,
-                                size: 30,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'Pedido compartido',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${items.length} ${items.length == 1 ? 'camisa registrada' : 'camisas registradas'}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppTheme.muted,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      ...items.asMap().entries.map((entry) {
-                        return _PublicItemCard(
-                          index: entry.key + 1,
-                          item: entry.value,
-                        );
-                      }),
-                    ],
+            return ListView.builder(
+  physics: const BouncingScrollPhysics(),
+  padding: const EdgeInsets.all(18),
+  cacheExtent: 650,
+  itemCount: items.length + 1,
+  itemBuilder: (context, index) {
+    if (index == 0) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 18),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: AppTheme.panel,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.checkroom_rounded,
+                    color: AppTheme.accent,
+                    size: 30,
                   ),
                 ),
-              ),
-            );
+                const SizedBox(height: 14),
+                const Text(
+                  'Pedido compartido',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${items.length} ${items.length == 1 ? 'camisa registrada' : 'camisas registradas'}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final item = items[index - 1];
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 980),
+        child: RepaintBoundary(
+          child: _PublicItemCard(
+            index: index,
+            item: item,
+          ),
+        ),
+      ),
+    );
+  },
+);
           },
         ),
       ),

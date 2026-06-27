@@ -114,21 +114,35 @@ class _PedidosScreenState extends State<PedidosScreen> {
 }
 
   Future<void> share() async {
-  final pid = selectedPedidoId ?? await repo.getOrCreateActiveOrder();
+  try {
+    final pid = selectedPedidoId ?? await repo.getOrCreateActiveOrder();
 
-  await repo.enablePublicAccess(pid);
+    await repo.enablePublicAccess(pid);
 
-  final base = '${Uri.base.origin}${Uri.base.path}';
-  final url = '${base}#/public/$pid';
+    final base = Uri.base.origin + Uri.base.path;
+    final url = '${base.endsWith('/') ? base : '$base/'}#/public/$pid';
 
-  await Clipboard.setData(ClipboardData(text: url));
-  await Share.share(url);
+    await Clipboard.setData(ClipboardData(text: url));
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Enlace de solo lectura copiado')),
-  );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Enlace copiado: $url'),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+
+    try {
+      await Share.share(url);
+    } catch (_) {}
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No se pudo compartir: $e')),
+    );
+  }
 }
   
 Future<void> deleteItem(OrderItem item) async {
@@ -307,19 +321,28 @@ if (snap.connectionState == ConnectionState.waiting)
               else if (items.isEmpty)
                 const _EmptyState()
               else if (isMobile)
-                Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
-  children: items.asMap().entries.map((e) {
-    return _MobileOrderCard(
-      index: e.key + 1,
-      item: e.value,
-      onEdit: () => openForm(e.value),
-      onImages: () => openImages(e.value),
-      onPay: () => openPay(e.value),
-      onDelete: () => deleteItem(e.value),
-    );
-  }).toList(),
-)
+  SizedBox(
+    height: MediaQuery.of(context).size.height * .72,
+    child: ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 650,
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+
+        return RepaintBoundary(
+          child: _MobileOrderCard(
+            index: index + 1,
+            item: item,
+            onEdit: () => openForm(item),
+            onImages: () => openImages(item),
+            onPay: () => openPay(item),
+            onDelete: () => deleteItem(item),
+          ),
+        );
+      },
+    ),
+  )
               else if (desktopCardsView)
   _DesktopOrderCards(
     items: items,
@@ -1030,13 +1053,7 @@ class _MobileOrderCard extends StatelessWidget {
         color: AppTheme.panel,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppTheme.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.10),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
