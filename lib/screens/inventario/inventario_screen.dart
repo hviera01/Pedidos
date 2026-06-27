@@ -22,10 +22,15 @@ class _InventarioScreenState extends State<InventarioScreen> {
 final searchController = TextEditingController();
 final searchFocus = FocusNode();
 Timer? searchDebounce;
-String search = '';
-String filter = 'conStock';
+final _searchNotifier = ValueNotifier<String>('');
+final _filterNotifier = ValueNotifier<String>('conStock');
 List<Product> _cachedRaw = [];
 List<Product> _cachedFiltered = [];
+String _cachedSearch = '';
+String _cachedFilter = '';
+
+String get search => _searchNotifier.value;
+String get filter => _filterNotifier.value;
 String normalize(String value) {
   return value
       .toLowerCase()
@@ -40,17 +45,21 @@ String normalize(String value) {
 
 void changeSearch(String value) {
   searchDebounce?.cancel();
-  searchDebounce = Timer(const Duration(milliseconds: 180), () {
-    if (mounted) setState(() => search = value);
+  searchDebounce = Timer(const Duration(milliseconds: 350), () {
+    if (mounted) _searchNotifier.value = value;
   });
 }
 
 List<Product> filteredProducts(List<Product> products) {
-  if (identical(products, _cachedRaw)) return _cachedFiltered;
+  if (identical(products, _cachedRaw) && search == _cachedSearch && filter == _cachedFilter) {
+    return _cachedFiltered;
+  }
   final query = normalize(search);
   final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
 
   _cachedRaw = products;
+  _cachedSearch = search;
+  _cachedFilter = filter;
   _cachedFiltered = products.where((x) {
     final text = normalize('${x.codigo} ${x.descripcion}');
     final matchText = words.isEmpty || words.every(text.contains);
@@ -68,6 +77,8 @@ void dispose() {
   searchDebounce?.cancel();
   searchController.dispose();
   searchFocus.dispose();
+  _searchNotifier.dispose();
+  _filterNotifier.dispose();
   super.dispose();
 }
 
@@ -121,9 +132,13 @@ Widget build(BuildContext context) {
     title: '',
     subtitle: '',
     actions: const [],
-    child: StreamBuilder<List<Product>>(
-      stream: repo.streamProducts(),
-      builder: (context, snap) {
+    child: ValueListenableBuilder<String>(
+      valueListenable: _searchNotifier,
+      builder: (context, _, __) => ValueListenableBuilder<String>(
+        valueListenable: _filterNotifier,
+        builder: (context, _, __) => StreamBuilder<List<Product>>(
+          stream: repo.streamProducts(),
+          builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -145,7 +160,7 @@ Widget build(BuildContext context) {
             child: CustomScrollView(
               physics: const ClampingScrollPhysics(),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              cacheExtent: 900,
+              cacheExtent: 2500,
               slivers: [
                 SliverToBoxAdapter(
                   child: _InventoryTop(
@@ -154,7 +169,7 @@ Widget build(BuildContext context) {
                   focusNode: searchFocus,
                   filter: filter,
                   onSearch: changeSearch,
-                  onFilter: (v) => setState(() => filter = v),
+                  onFilter: (v) => _filterNotifier.value = v,
                   onNew: () => openForm(),
                 ),
                 ),
@@ -202,7 +217,7 @@ Widget build(BuildContext context) {
               focusNode: searchFocus,
               filter: filter,
               onSearch: changeSearch,
-              onFilter: (v) => setState(() => filter = v),
+              onFilter: (v) => _filterNotifier.value = v,
               onNew: () => openForm(),
             ),
             const SizedBox(height: 16),
@@ -239,7 +254,7 @@ Widget build(BuildContext context) {
                               child: ListView.builder(
                                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                                 itemCount: list.length,
-                                cacheExtent: 900,
+                                cacheExtent: 2500,
                                 itemBuilder: (context, index) {
                                   final p = list[index];
 
@@ -264,6 +279,8 @@ Widget build(BuildContext context) {
           ],
         );
       },
+        ),
+      ),
     ),
   );
 }
