@@ -67,6 +67,18 @@ class _InventarioScreenState extends State<InventarioScreen> {
 Widget build(BuildContext context) {
   final mobile = MediaQuery.of(context).size.width < 760;
 
+  String normalize(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .trim();
+  }
+
   return PageFrame(
     title: 'Inventario',
     subtitle: 'Productos, imágenes, precios, existencias y ajustes de stock.',
@@ -82,78 +94,102 @@ Widget build(BuildContext context) {
     child: StreamBuilder<List<Product>>(
       stream: repo.streamProducts(),
       builder: (context, snap) {
-        var list = snap.data ?? [];
-
-        list = list.where((x) {
-          final q = '${x.codigo} ${x.descripcion}'.toLowerCase();
-          final matchText = q.contains(search);
-          final matchStock = filter == 'todos' || (filter == 'conStock' && x.stock > 0) || (filter == 'sinStock' && x.stock <= 0);
-          return matchText && matchStock;
-        }).toList();
-
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (snap.hasError) {
+          return Center(
+            child: Text(
+              'Error: ${snap.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final query = normalize(search);
+
+        var list = (snap.data ?? []).where((x) {
+          final text = normalize('${x.codigo} ${x.descripcion}');
+          final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+
+          final matchText = words.isEmpty || words.every(text.contains);
+          final matchStock = filter == 'todos' ||
+              (filter == 'conStock' && x.stock > 0) ||
+              (filter == 'sinStock' && x.stock <= 0);
+
+          return matchText && matchStock;
+        }).toList();
+
         if (mobile) {
-  return ListView.builder(
-    primary: true,
-    physics: const AlwaysScrollableScrollPhysics(
-      parent: BouncingScrollPhysics(),
-    ),
-    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-    cacheExtent: 180,
-    itemCount: list.length + 1,
-    itemBuilder: (context, index) {
-      if (index == 0) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => openForm(),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nuevo producto'),
-                ),
+          return SizedBox(
+            height: MediaQuery.of(context).size.height - 115,
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded),
-                  labelText: 'Buscar producto',
-                ),
-                onChanged: (v) => setState(() => search = v.trim().toLowerCase()),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: filter,
-                decoration: const InputDecoration(labelText: 'Stock'),
-                items: const [
-                  DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
-                  DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
-                  DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                ],
-                onChanged: (v) => setState(() => filter = v ?? filter),
-              ),
-            ],
-          ),
-        );
-      }
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              cacheExtent: 250,
+              itemCount: list.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => openForm(),
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Nuevo producto'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search_rounded),
+                            labelText: 'Buscar producto',
+                          ),
+                          onChanged: (v) => setState(() => search = v),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: filter,
+                          decoration: const InputDecoration(labelText: 'Stock'),
+                          items: const [
+                            DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
+                            DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
+                            DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                          ],
+                          onChanged: (v) => setState(() => filter = v ?? filter),
+                        ),
+                        if (list.isEmpty) ...[
+                          const SizedBox(height: 24),
+                          const Text(
+                            'No se encontraron productos.',
+                            style: TextStyle(color: AppTheme.muted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }
 
-      final p = list[index - 1];
+                final p = list[index - 1];
 
-      return _ProductCard(
-        product: p,
-        onEdit: () => openForm(p),
-        onStock: () => openStock(p),
-        onHistory: () => openHistory(p),
-        onDelete: () => removeProduct(p),
-      );
-    },
-  );
-}
+                return _ProductCard(
+                  key: ValueKey(p.id),
+                  product: p,
+                  onEdit: () => openForm(p),
+                  onStock: () => openStock(p),
+                  onHistory: () => openHistory(p),
+                  onDelete: () => removeProduct(p),
+                );
+              },
+            ),
+          );
+        }
 
         return Column(
           children: [
@@ -168,7 +204,7 @@ Widget build(BuildContext context) {
                       prefixIcon: Icon(Icons.search_rounded),
                       labelText: 'Buscar producto',
                     ),
-                    onChanged: (v) => setState(() => search = v.trim().toLowerCase()),
+                    onChanged: (v) => setState(() => search = v),
                   ),
                 ),
                 SizedBox(
@@ -187,41 +223,50 @@ Widget build(BuildContext context) {
               ],
             ),
             const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 1140 ? 1140.0 : constraints.maxWidth;
+            if (list.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No se encontraron productos.',
+                  style: TextStyle(color: AppTheme.muted),
+                ),
+              )
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final tableWidth = constraints.maxWidth < 1140 ? 1140.0 : constraints.maxWidth;
 
-                return Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppTheme.panel,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Column(
-                        children: [
-                          const _InventoryHeader(),
-                          ...list.map((p) {
-                            return _ProductRow(
-                              product: p,
-                              onEdit: () => openForm(p),
-                              onStock: () => openStock(p),
-                              onHistory: () => openHistory(p),
-                              onDelete: () => removeProduct(p),
-                            );
-                          }),
-                        ],
+                  return Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppTheme.panel,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Column(
+                          children: [
+                            const _InventoryHeader(),
+                            ...list.map((p) {
+                              return _ProductRow(
+                                product: p,
+                                onEdit: () => openForm(p),
+                                onStock: () => openStock(p),
+                                onHistory: () => openHistory(p),
+                                onDelete: () => removeProduct(p),
+                              );
+                            }),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
           ],
         );
       },
@@ -324,6 +369,7 @@ class _ProductCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _ProductCard({
+    super.key,
     required this.product,
     required this.onEdit,
     required this.onStock,

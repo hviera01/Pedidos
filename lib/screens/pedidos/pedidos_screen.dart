@@ -1758,9 +1758,11 @@ Future<void> pickPatch() async {
   setState(() => newPatches.addAll(imgs));
 }
 
-  void removeCurrentPatch(String url) {
+ void removeCurrentPatchAt(int index) {
+  if (index < 0 || index >= currentPatches.length) return;
+
   setState(() {
-    currentPatches.removeWhere((x) => x == url);
+    currentPatches.removeAt(index);
   });
 }
 
@@ -1890,44 +1892,47 @@ void removeNewPatchAt(int index) {
                     children: currentPatches.asMap().entries.map((entry) {
   final index = entry.key;
   final url = entry.value;
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 86,
-                            height: 86,
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: AppTheme.panel2,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppTheme.border),
-                            ),
-                            child: SmartNetworkImage(
-                              url: url,
-                              width: 76,
-                              height: 76,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          Positioned(
-                            right: -7,
-                            top: -7,
-                            child: InkWell(
-                              onTap: loading ? null : () => removeCurrentPatch(url),
-                              borderRadius: BorderRadius.circular(999),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.danger,
-                                  shape: BoxShape.circle,
-                                ),
-                                padding: const EdgeInsets.all(5),
-                                child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+
+  return Stack(
+    key: ValueKey('current_patch_${index}_$url'),
+    clipBehavior: Clip.none,
+    children: [
+      Container(
+        width: 86,
+        height: 86,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: AppTheme.panel2,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: SmartNetworkImage(
+          key: ValueKey(url),
+          url: url,
+          width: 76,
+          height: 76,
+          fit: BoxFit.contain,
+        ),
+      ),
+      Positioned(
+        right: -7,
+        top: -7,
+        child: InkWell(
+          onTap: loading ? null : () => removeCurrentPatchAt(index),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.danger,
+              shape: BoxShape.circle,
+            ),
+            padding: const EdgeInsets.all(5),
+            child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+          ),
+        ),
+      ),
+    ],
+  );
+}).toList(),
                   ),
                 ),
               const SizedBox(height: 18),
