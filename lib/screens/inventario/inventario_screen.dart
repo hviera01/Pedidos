@@ -20,10 +20,12 @@ class InventarioScreen extends StatefulWidget {
 class _InventarioScreenState extends State<InventarioScreen> {
   final repo = ProductRepository();
 final searchController = TextEditingController();
+final searchFocus = FocusNode();
 Timer? searchDebounce;
 String search = '';
 String filter = 'conStock';
-
+List<Product> _cachedRaw = [];
+List<Product> _cachedFiltered = [];
 String normalize(String value) {
   return value
       .toLowerCase()
@@ -44,24 +46,28 @@ void changeSearch(String value) {
 }
 
 List<Product> filteredProducts(List<Product> products) {
+  if (identical(products, _cachedRaw)) return _cachedFiltered;
   final query = normalize(search);
   final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
 
-  return products.where((x) {
+  _cachedRaw = products;
+  _cachedFiltered = products.where((x) {
     final text = normalize('${x.codigo} ${x.descripcion}');
     final matchText = words.isEmpty || words.every(text.contains);
     final matchStock = filter == 'todos' ||
         (filter == 'conStock' && x.stock > 0) ||
         (filter == 'sinStock' && x.stock <= 0);
-
     return matchText && matchStock;
   }).toList();
+
+  return _cachedFiltered;
 }
 
 @override
 void dispose() {
   searchDebounce?.cancel();
   searchController.dispose();
+  searchFocus.dispose();
   super.dispose();
 }
 
@@ -137,19 +143,20 @@ Widget build(BuildContext context) {
           return SizedBox(
             height: MediaQuery.of(context).size.height - 95,
             child: CustomScrollView(
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              physics: const ClampingScrollPhysics(),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               cacheExtent: 900,
               slivers: [
                 SliverToBoxAdapter(
                   child: _InventoryTop(
-                    mobile: true,
-                    controller: searchController,
-                    filter: filter,
-                    onSearch: changeSearch,
-                    onFilter: (v) => setState(() => filter = v),
-                    onNew: () => openForm(),
-                  ),
+                  mobile: true,
+                  controller: searchController,
+                  focusNode: searchFocus,
+                  filter: filter,
+                  onSearch: changeSearch,
+                  onFilter: (v) => setState(() => filter = v),
+                  onNew: () => openForm(),
+                ),
                 ),
                 if (list.isEmpty)
                   const SliverToBoxAdapter(
@@ -189,9 +196,10 @@ Widget build(BuildContext context) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InventoryTop(
+           _InventoryTop(
               mobile: false,
               controller: searchController,
+              focusNode: searchFocus,
               filter: filter,
               onSearch: changeSearch,
               onFilter: (v) => setState(() => filter = v),
@@ -289,6 +297,7 @@ class _InventoryHeader extends StatelessWidget {
 class _InventoryTop extends StatelessWidget {
   final bool mobile;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String filter;
   final ValueChanged<String> onSearch;
   final ValueChanged<String> onFilter;
@@ -297,6 +306,7 @@ class _InventoryTop extends StatelessWidget {
   const _InventoryTop({
     required this.mobile,
     required this.controller,
+    required this.focusNode,
     required this.filter,
     required this.onSearch,
     required this.onFilter,
@@ -322,6 +332,7 @@ class _InventoryTop extends StatelessWidget {
 
     final search = TextField(
       controller: controller,
+      focusNode: focusNode,
       textInputAction: TextInputAction.search,
       decoration: const InputDecoration(
         prefixIcon: Icon(Icons.search_rounded),
@@ -419,11 +430,13 @@ class _ProductRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: SmartNetworkImage(
-              url: product.imgUrl,
-              width: 92,
-              height: 66,
-              fit: BoxFit.contain,
+            child: RepaintBoundary(
+              child: SmartNetworkImage(
+                url: product.imgUrl,
+                width: 92,
+                height: 66,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           SizedBox(width: 150, child: Text(product.codigo, overflow: TextOverflow.ellipsis)),
