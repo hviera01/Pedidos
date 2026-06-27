@@ -1758,11 +1758,9 @@ Future<void> pickPatch() async {
   setState(() => newPatches.addAll(imgs));
 }
 
-  void removeCurrentPatchAt(int index) {
-  if (index < 0 || index >= currentPatches.length) return;
-
+  void removeCurrentPatch(String url) {
   setState(() {
-    currentPatches.removeAt(index);
+    currentPatches.removeWhere((x) => x == url);
   });
 }
 
@@ -1781,15 +1779,22 @@ void removeNewPatchAt(int index) {
 
   try {
     final storage = StorageService();
-    String mainUrl = widget.item.imgPrincipalUrl;
 
-    if (mainImage != null) {
-      mainUrl = await storage.uploadXFile(mainImage!, 'pedidos/principal');
-    }
+    final mainFuture = mainImage == null
+        ? Future.value(widget.item.imgPrincipalUrl)
+        : storage.uploadXFile(mainImage!, 'pedidos/principal');
 
-    final uploadedPatches = await Future.wait(
+    final patchesFuture = Future.wait(
       newPatches.map((p) => storage.uploadXFile(p, 'pedidos/parches')),
     );
+
+    final result = await Future.wait([
+      mainFuture,
+      patchesFuture,
+    ]);
+
+    final mainUrl = result[0] as String;
+    final uploadedPatches = result[1] as List<String>;
 
     final patchUrls = <String>[
       ...currentPatches.where((x) => x.trim().isNotEmpty),
@@ -1908,7 +1913,7 @@ void removeNewPatchAt(int index) {
                             right: -7,
                             top: -7,
                             child: InkWell(
-                              onTap: loading ? null : () => removeCurrentPatchAt(index),
+                              onTap: loading ? null : () => removeCurrentPatch(url),
                               borderRadius: BorderRadius.circular(999),
                               child: Container(
                                 decoration: const BoxDecoration(

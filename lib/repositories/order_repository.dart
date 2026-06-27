@@ -202,50 +202,79 @@ class OrderRepository {
   }
 
   Future<void> updateItemText({
-    required OrderItem item,
-    required String clienteNombre,
-    required String version,
-    required String talla,
-    required String nombreNumero,
-    required int cantidad,
-    required double precioUnit,
-  }) async {
-    if (item.manual || item.pedidoId == 'manual') {
-      final total = cantidad * precioUnit;
-      final debe = total - item.pagado;
+  required OrderItem item,
+  required String clienteNombre,
+  required String version,
+  required String talla,
+  required String nombreNumero,
+  required int cantidad,
+  required double precioUnit,
+}) async {
+  final safeCantidad = cantidad <= 0 ? 1 : cantidad;
+  final total = safeCantidad * precioUnit;
+  final debe = total - item.pagado;
+  final safeDebe = debe < 0 ? 0 : debe;
 
-      await db.collection('creditos').doc(item.id).update({
-        'clienteNombre': clienteNombre,
-        'version': version,
-        'talla': talla,
-        'nombreNumero': nombreNumero,
-        'cantidad': cantidad,
-        'precioUnit': precioUnit,
-        'totalVenta': total,
-        'debe': debe < 0 ? 0 : debe,
-        'actualizadoEn': FieldValue.serverTimestamp(),
-      });
-
-      return;
-    }
-
-    final total = cantidad * precioUnit;
-    final debe = total - item.pagado;
-
-    await db.collection('pedidos').doc(item.pedidoId).collection('camisas').doc(item.id).update({
+  if (item.manual || item.pedidoId == 'manual') {
+    await db.collection('creditos').doc(item.id).update({
       'clienteNombre': clienteNombre,
       'version': version,
       'talla': talla,
       'nombreNumero': nombreNumero,
-      'cantidad': cantidad,
+      'cantidad': safeCantidad,
       'precioUnit': precioUnit,
       'totalVenta': total,
-      'debe': debe < 0 ? 0 : debe,
+      'debe': safeDebe,
       'actualizadoEn': FieldValue.serverTimestamp(),
     });
 
-    await recalculateOrder(item.pedidoId);
+    return;
   }
+
+  final pedidoId = item.pedidoId.trim();
+  final camisaId = item.id.trim();
+
+  if (pedidoId.isEmpty || camisaId.isEmpty) {
+    throw Exception('ID inválido para actualizar camisa.');
+  }
+
+  final oldTotal = item.totalVenta;
+  final oldPagado = item.pagado;
+  final oldDebe = item.debe;
+  final oldCantidad = item.cantidad <= 0 ? 1 : item.cantidad;
+
+  final batch = db.batch();
+
+  final camisaRef = db
+      .collection('pedidos')
+      .doc(pedidoId)
+      .collection('camisas')
+      .doc(camisaId);
+
+  final pedidoRef = db.collection('pedidos').doc(pedidoId);
+
+  batch.update(camisaRef, {
+    'clienteNombre': clienteNombre,
+    'version': version,
+    'talla': talla,
+    'nombreNumero': nombreNumero,
+    'cantidad': safeCantidad,
+    'precioUnit': precioUnit,
+    'totalVenta': total,
+    'debe': safeDebe,
+    'actualizadoEn': FieldValue.serverTimestamp(),
+  });
+
+  batch.set(pedidoRef, {
+    'camisasCount': FieldValue.increment(safeCantidad - oldCantidad),
+    'totalVenta': FieldValue.increment(total - oldTotal),
+    'totalPagado': FieldValue.increment(item.pagado - oldPagado),
+    'totalDebe': FieldValue.increment(safeDebe - oldDebe),
+    'actualizadoEn': FieldValue.serverTimestamp(),
+  }, SetOptions(merge: true));
+
+  await batch.commit();
+}
 
   Future<void> updateItemImages({
   required OrderItem item,
@@ -256,20 +285,28 @@ class OrderRepository {
     return;
   }
 
-  final cleanPatches = imgsParchesUrl.where((x) => x.trim().isNotEmpty).toList();
+  final pedidoId = item.pedidoId.trim();
+  final camisaId = item.id.trim();
+
+  if (pedidoId.isEmpty || camisaId.isEmpty) {
+    throw Exception('ID inválido para actualizar imágenes.');
+  }
+
+  final cleanPatches = imgsParchesUrl
+      .map((x) => x.trim())
+      .where((x) => x.isNotEmpty)
+      .toList();
 
   await db
       .collection('pedidos')
-      .doc(item.pedidoId)
+      .doc(pedidoId)
       .collection('camisas')
-      .doc(item.id)
-      .set({
+      .doc(camisaId)
+      .update({
     'imgPrincipalUrl': imgPrincipalUrl.trim(),
     'imgsParchesUrl': cleanPatches,
     'actualizadoEn': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
-
-  await recalculateOrder(item.pedidoId);
+  });
 }
 
   Future<void> updatePayment(

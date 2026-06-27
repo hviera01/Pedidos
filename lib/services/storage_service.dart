@@ -4,9 +4,19 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 class StorageService {
+  static Future<void>? _authFuture;
+
   Future<void> ensureAuth() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
+    final auth = FirebaseAuth.instance;
+
+    if (auth.currentUser != null) return;
+
+    _authFuture ??= auth.signInAnonymously();
+
+    try {
+      await _authFuture;
+    } finally {
+      _authFuture = null;
     }
   }
 
@@ -18,15 +28,18 @@ class StorageService {
     final contentType = contentTypeFromExt(ext);
     final safeFolder = folder.replaceAll('\\', '/').replaceAll('//', '/');
     final safeName = file.name.replaceAll(' ', '_').replaceAll('/', '_').replaceAll('\\', '_');
-    final name = '${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    final name = '${DateTime.now().microsecondsSinceEpoch}_$safeName';
     final ref = FirebaseStorage.instance.ref().child('$safeFolder/$name');
 
     await ref.putData(
       Uint8List.fromList(bytes),
-      SettableMetadata(contentType: contentType),
+      SettableMetadata(
+        contentType: contentType,
+        cacheControl: 'public,max-age=31536000',
+      ),
     );
 
-    return await ref.getDownloadURL();
+    return ref.getDownloadURL();
   }
 
   String contentTypeFromExt(String ext) {

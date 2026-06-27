@@ -96,65 +96,64 @@ Widget build(BuildContext context) {
         }
 
         if (mobile) {
-          return SizedBox(
-            height: MediaQuery.of(context).size.height - 105,
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              cacheExtent: 650,
-              itemCount: list.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () => openForm(),
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Nuevo producto'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.search_rounded),
-                            labelText: 'Buscar producto',
-                          ),
-                          onChanged: (v) => setState(() => search = v.trim().toLowerCase()),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: filter,
-                          decoration: const InputDecoration(labelText: 'Stock'),
-                          items: const [
-                            DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
-                            DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
-                            DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                          ],
-                          onChanged: (v) => setState(() => filter = v ?? filter),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+  return ListView.builder(
+    primary: true,
+    physics: const AlwaysScrollableScrollPhysics(
+      parent: BouncingScrollPhysics(),
+    ),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    cacheExtent: 180,
+    itemCount: list.length + 1,
+    itemBuilder: (context, index) {
+      if (index == 0) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => openForm(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Nuevo producto'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded),
+                  labelText: 'Buscar producto',
+                ),
+                onChanged: (v) => setState(() => search = v.trim().toLowerCase()),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: filter,
+                decoration: const InputDecoration(labelText: 'Stock'),
+                items: const [
+                  DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
+                  DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
+                  DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                ],
+                onChanged: (v) => setState(() => filter = v ?? filter),
+              ),
+            ],
+          ),
+        );
+      }
 
-                final p = list[index - 1];
+      final p = list[index - 1];
 
-                return RepaintBoundary(
-                  child: _ProductCard(
-                    product: p,
-                    onEdit: () => openForm(p),
-                    onStock: () => openStock(p),
-                    onHistory: () => openHistory(p),
-                    onDelete: () => removeProduct(p),
-                  ),
-                );
-              },
-            ),
-          );
-        }
+      return _ProductCard(
+        product: p,
+        onEdit: () => openForm(p),
+        onStock: () => openStock(p),
+        onHistory: () => openHistory(p),
+        onDelete: () => removeProduct(p),
+      );
+    },
+  );
+}
 
         return Column(
           children: [
