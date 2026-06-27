@@ -122,20 +122,22 @@ class _PedidosScreenState extends State<PedidosScreen> {
     final base = Uri.base.origin + Uri.base.path;
     final url = '${base.endsWith('/') ? base : '$base/'}#/public/$pid';
 
-    await Clipboard.setData(ClipboardData(text: url));
+    try {
+      await Share.share(url);
+    } catch (_) {}
+
+    try {
+      await Clipboard.setData(ClipboardData(text: url));
+    } catch (_) {}
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Enlace copiado: $url'),
+        content: Text('Enlace listo: $url'),
         duration: const Duration(seconds: 5),
       ),
     );
-
-    try {
-      await Share.share(url);
-    } catch (_) {}
   } catch (e) {
     if (!mounted) return;
 
@@ -221,10 +223,11 @@ Future<void> deleteItem(OrderItem item) async {
     if (loadingPedidoGuardado) {
   return const Center(child: CircularProgressIndicator());
 }
+final pageIsMobile = MediaQuery.of(context).size.width < 760;
     return PageFrame(
       title: 'Pedidos',
       subtitle: 'Control de camisas, fotos, parches, pagos y saldo pendiente.',
-      actions: [
+      actions: pageIsMobile ? [] : [
         OutlinedButton.icon(
           onPressed: () => openForm(),
           icon: const Icon(Icons.add_rounded),
@@ -284,15 +287,17 @@ if (selectedPedidoId != null)
 
           return Column(
             children: [
-              _KpiGrid(
-                items: [
-                  _KpiData(title: 'Camisas', value: '${items.length}', icon: Icons.checkroom_rounded),
-                  _KpiData(title: 'Total', value: Formatters.money(total), icon: Icons.sell_rounded),
-                  _KpiData(title: 'Pagado', value: Formatters.money(pagado), icon: Icons.payments_rounded),
-                  _KpiData(title: 'Pendiente', value: Formatters.money(debe), icon: Icons.warning_rounded),
-                ],
-              ),
-              const SizedBox(height: 14),
+              if (!isMobile) ...[
+  _KpiGrid(
+    items: [
+      _KpiData(title: 'Camisas', value: '${items.length}', icon: Icons.checkroom_rounded),
+      _KpiData(title: 'Total', value: Formatters.money(total), icon: Icons.sell_rounded),
+      _KpiData(title: 'Pagado', value: Formatters.money(pagado), icon: Icons.payments_rounded),
+      _KpiData(title: 'Pendiente', value: Formatters.money(debe), icon: Icons.warning_rounded),
+    ],
+  ),
+  const SizedBox(height: 14),
+],
 if (!isMobile && items.isNotEmpty)
   Align(
     alignment: Alignment.centerRight,
@@ -322,7 +327,7 @@ if (snap.connectionState == ConnectionState.waiting)
                 const _EmptyState()
               else if (isMobile)
   SizedBox(
-    height: MediaQuery.of(context).size.height * .72,
+    height: MediaQuery.of(context).size.height - 145,
     child: ListView.builder(
       physics: const BouncingScrollPhysics(),
       cacheExtent: 650,
