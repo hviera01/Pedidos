@@ -219,157 +219,238 @@ Future<void> deleteItem(OrderItem item) async {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (loadingPedidoGuardado) {
-  return const Center(child: CircularProgressIndicator());
-}
-final pageIsMobile = MediaQuery.of(context).size.width < 760;
-    return PageFrame(
-      title: 'Pedidos',
-      subtitle: 'Control de camisas, fotos, parches, pagos y saldo pendiente.',
-      actions: pageIsMobile ? [] : [
-        OutlinedButton.icon(
-          onPressed: () => openForm(),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Agregar camisa'),
-        ),
-        OutlinedButton.icon(
-          onPressed: share,
-          icon: const Icon(Icons.link_rounded),
-          label: const Text('Compartir'),
-        ),
-        OutlinedButton.icon(
-          onPressed: openHistory,
-          icon: const Icon(Icons.history_rounded),
-          label: const Text('Historial'),
-        ),
-        OutlinedButton.icon(
-          onPressed: closeOrder,
-          icon: const Icon(Icons.lock_rounded),
-          label: const Text('Cerrar pedido'),
-        ),
-        OutlinedButton.icon(
-  onPressed: newOrder,
-  icon: const Icon(Icons.note_add_rounded),
-  label: const Text('Nuevo pedido'),
-),
-if (selectedPedidoId != null)
-  OutlinedButton.icon(
-    onPressed: () async {
-  await guardarPedidoActivo(null);
-  if (!context.mounted) return;
-  setState(() => selectedPedidoId = null);
-},
-    icon: const Icon(Icons.home_rounded),
-    label: const Text('Pedido activo'),
-  ),
-      ],
-      child: StreamBuilder<List<OrderItem>>(
-  stream: selectedPedidoId == null
-      ? repo.streamActiveItems()
-      : repo.streamOrderItems(selectedPedidoId!),
-  builder: (context, snap) {
+Widget build(BuildContext context) {
+  if (loadingPedidoGuardado) {
+    return const Center(child: CircularProgressIndicator());
+  }
 
-    if (snap.hasError) {
-      return Center(
-        child: Text(
-          'Error: ${snap.error}',
-          style: const TextStyle(color: Colors.red),
-        ),
-      );
-    }
+  final pageIsMobile = MediaQuery.of(context).size.width < 760;
 
-    final items = snap.data ?? [];
-    final total = items.fold<double>(0, (a, b) => a + b.totalVenta);
-          final pagado = items.fold<double>(0, (a, b) => a + b.pagado);
-          final debe = items.fold<double>(0, (a, b) => a + b.debe);
-          final isMobile = MediaQuery.of(context).size.width < 760;
+  return PageFrame(
+    title: pageIsMobile ? '' : 'Pedidos',
+    subtitle: pageIsMobile ? '' : 'Control de camisas, fotos, parches, pagos y saldo pendiente.',
+    actions: pageIsMobile
+        ? []
+        : [
+            OutlinedButton.icon(
+              onPressed: () => openForm(),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Agregar camisa'),
+            ),
+            OutlinedButton.icon(
+              onPressed: share,
+              icon: const Icon(Icons.link_rounded),
+              label: const Text('Compartir'),
+            ),
+            OutlinedButton.icon(
+              onPressed: openHistory,
+              icon: const Icon(Icons.history_rounded),
+              label: const Text('Historial'),
+            ),
+            OutlinedButton.icon(
+              onPressed: closeOrder,
+              icon: const Icon(Icons.lock_rounded),
+              label: const Text('Cerrar pedido'),
+            ),
+            OutlinedButton.icon(
+              onPressed: newOrder,
+              icon: const Icon(Icons.note_add_rounded),
+              label: const Text('Nuevo pedido'),
+            ),
+            if (selectedPedidoId != null)
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await guardarPedidoActivo(null);
+                  if (!context.mounted) return;
+                  setState(() => selectedPedidoId = null);
+                },
+                icon: const Icon(Icons.home_rounded),
+                label: const Text('Pedido activo'),
+              ),
+          ],
+    child: StreamBuilder<List<OrderItem>>(
+      stream: selectedPedidoId == null ? repo.streamActiveItems() : repo.streamOrderItems(selectedPedidoId!),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(
+            child: Text(
+              'Error: ${snap.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
 
-          return Column(
-            children: [
-              if (!isMobile) ...[
-  _KpiGrid(
-    items: [
-      _KpiData(title: 'Camisas', value: '${items.length}', icon: Icons.checkroom_rounded),
-      _KpiData(title: 'Total', value: Formatters.money(total), icon: Icons.sell_rounded),
-      _KpiData(title: 'Pagado', value: Formatters.money(pagado), icon: Icons.payments_rounded),
-      _KpiData(title: 'Pendiente', value: Formatters.money(debe), icon: Icons.warning_rounded),
-    ],
-  ),
-  const SizedBox(height: 14),
-],
-if (!isMobile && items.isNotEmpty)
-  Align(
-    alignment: Alignment.centerRight,
-    child: SegmentedButton<bool>(
-      segments: const [
-        ButtonSegment(
-          value: false,
-          icon: Icon(Icons.table_rows_rounded),
-          label: Text('Tabla'),
-        ),
-        ButtonSegment(
-          value: true,
-          icon: Icon(Icons.dashboard_rounded),
-          label: Text('Cards'),
-        ),
-      ],
-      selected: {desktopCardsView},
-      onSelectionChanged: (value) {
-        setState(() => desktopCardsView = value.first);
-      },
-    ),
-  ),
-const SizedBox(height: 18),
-if (snap.connectionState == ConnectionState.waiting)
-                const Center(child: CircularProgressIndicator())
-              else if (items.isEmpty)
-                const _EmptyState()
-              else if (isMobile)
-  SizedBox(
-    height: MediaQuery.of(context).size.height - 145,
-    child: ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      cacheExtent: 650,
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
+        final items = snap.data ?? [];
+        final total = items.fold<double>(0, (a, b) => a + b.totalVenta);
+        final pagado = items.fold<double>(0, (a, b) => a + b.pagado);
+        final debe = items.fold<double>(0, (a, b) => a + b.debe);
+        final isMobile = MediaQuery.of(context).size.width < 760;
 
-        return RepaintBoundary(
-          child: _MobileOrderCard(
-            index: index + 1,
-            item: item,
-            onEdit: () => openForm(item),
-            onImages: () => openImages(item),
-            onPay: () => openPay(item),
-            onDelete: () => deleteItem(item),
-          ),
+        if (isMobile) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return SizedBox(
+            height: MediaQuery.of(context).size.height - 95,
+            child: ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              cacheExtent: 700,
+              itemCount: items.isEmpty ? 3 : items.length + 2,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pedidos',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Control de camisas, fotos, parches, pagos y saldo pendiente.',
+                          style: TextStyle(
+                            color: AppTheme.muted,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => openForm(),
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Agregar camisa'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: share,
+                              icon: const Icon(Icons.link_rounded),
+                              label: const Text('Compartir'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: openHistory,
+                              icon: const Icon(Icons.history_rounded),
+                              label: const Text('Historial'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: closeOrder,
+                              icon: const Icon(Icons.lock_rounded),
+                              label: const Text('Cerrar pedido'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: newOrder,
+                              icon: const Icon(Icons.note_add_rounded),
+                              label: const Text('Nuevo pedido'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (index == 1) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: _KpiGrid(
+                      items: [
+                        _KpiData(title: 'Camisas', value: '${items.length}', icon: Icons.checkroom_rounded),
+                        _KpiData(title: 'Total', value: Formatters.money(total), icon: Icons.sell_rounded),
+                        _KpiData(title: 'Pagado', value: Formatters.money(pagado), icon: Icons.payments_rounded),
+                        _KpiData(title: 'Pendiente', value: Formatters.money(debe), icon: Icons.warning_rounded),
+                      ],
+                    ),
+                  );
+                }
+
+                if (items.isEmpty) {
+                  return const _EmptyState();
+                }
+
+                final item = items[index - 2];
+
+                return RepaintBoundary(
+                  child: _MobileOrderCard(
+                    index: index - 1,
+                    item: item,
+                    onEdit: () => openForm(item),
+                    onImages: () => openImages(item),
+                    onPay: () => openPay(item),
+                    onDelete: () => deleteItem(item),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            _KpiGrid(
+              items: [
+                _KpiData(title: 'Camisas', value: '${items.length}', icon: Icons.checkroom_rounded),
+                _KpiData(title: 'Total', value: Formatters.money(total), icon: Icons.sell_rounded),
+                _KpiData(title: 'Pagado', value: Formatters.money(pagado), icon: Icons.payments_rounded),
+                _KpiData(title: 'Pendiente', value: Formatters.money(debe), icon: Icons.warning_rounded),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (items.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.table_rows_rounded),
+                      label: Text('Tabla'),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.dashboard_rounded),
+                      label: Text('Cards'),
+                    ),
+                  ],
+                  selected: {desktopCardsView},
+                  onSelectionChanged: (value) {
+                    setState(() => desktopCardsView = value.first);
+                  },
+                ),
+              ),
+            const SizedBox(height: 18),
+            if (snap.connectionState == ConnectionState.waiting)
+              const Center(child: CircularProgressIndicator())
+            else if (items.isEmpty)
+              const _EmptyState()
+            else if (desktopCardsView)
+              _DesktopOrderCards(
+                items: items,
+                onEdit: openForm,
+                onImages: openImages,
+                onPay: openPay,
+                onDelete: deleteItem,
+              )
+            else
+              _DesktopOrderTable(
+                items: items,
+                onEdit: openForm,
+                onImages: openImages,
+                onPay: openPay,
+                onDelete: deleteItem,
+              ),
+          ],
         );
       },
     ),
-  )
-              else if (desktopCardsView)
-  _DesktopOrderCards(
-    items: items,
-    onEdit: openForm,
-    onImages: openImages,
-    onPay: openPay,
-    onDelete: deleteItem,
-  )
-else
-  _DesktopOrderTable(
-    items: items,
-    onEdit: openForm,
-    onImages: openImages,
-    onPay: openPay,
-    onDelete: deleteItem,
-  ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+  );
+}
 }
 
 class _KpiData {
