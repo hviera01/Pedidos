@@ -63,30 +63,35 @@ class OrderRepository {
     return Stream.value(<OrderItem>[]);
   }
 
-  return db.collection('pedidos').doc(pid).collection('camisas').snapshots().map((snap) {
-    final list = snap.docs.map((d) {
+  return db
+      .collection('pedidos')
+      .doc(pid)
+      .collection('camisas')
+      .orderBy('creadoEn', descending: false)
+      .snapshots()
+      .map((snap) {
+    return snap.docs.map((d) {
       return OrderItem.fromMap(d.id, pid, d.data());
     }).where((x) {
       return x.manual == false && x.version.toUpperCase() != 'CRÉDITO';
     }).toList();
-
-    return list;
-  }).handleError((_) {
-    return <OrderItem>[];
   });
 }
 
   Future<List<OrderItem>> getOrderItemsOnce(String pedidoId) async {
-    final camisas = await db.collection('pedidos').doc(pedidoId).collection('camisas').get();
+  final camisas = await db
+      .collection('pedidos')
+      .doc(pedidoId)
+      .collection('camisas')
+      .orderBy('creadoEn', descending: false)
+      .get();
 
-    final list = camisas.docs.map((d) {
-      return OrderItem.fromMap(d.id, pedidoId, d.data());
-    }).where((x) {
-      return x.manual == false && x.version.toUpperCase() != 'CRÉDITO';
-    }).toList();
-
-    return list;
-  }
+  return camisas.docs.map((d) {
+    return OrderItem.fromMap(d.id, pedidoId, d.data());
+  }).where((x) {
+    return x.manual == false && x.version.toUpperCase() != 'CRÉDITO';
+  }).toList();
+}
 
   Stream<List<OrderItem>> streamAllItems() {
     return db.collectionGroup('camisas').snapshots().map((snap) {

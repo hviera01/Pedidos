@@ -1444,14 +1444,25 @@ numero.dispose();
   }
 
   Future<void> pickMain() async {
-    final img = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (img != null) setState(() => mainImage = img);
-  }
+  final img = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 1200,
+    maxHeight: 1200,
+    imageQuality: 72,
+  );
 
-  Future<void> pickPatch() async {
-    final imgs = await ImagePicker().pickMultiImage();
-    if (imgs.isNotEmpty) setState(() => patches.addAll(imgs));
-  }
+  if (img != null) setState(() => mainImage = img);
+}
+
+Future<void> pickPatch() async {
+  final imgs = await ImagePicker().pickMultiImage(
+    maxWidth: 1200,
+    maxHeight: 1200,
+    imageQuality: 72,
+  );
+
+  if (imgs.isNotEmpty) setState(() => patches.addAll(imgs));
+}
 
   Future<void> save() async {
     if (!formKey.currentState!.validate()) return;
@@ -1723,72 +1734,87 @@ class _ImagesDialogState extends State<_ImagesDialog> {
   }
 
   Future<void> pickMain() async {
-    final img = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    setState(() => mainImage = img);
-  }
+  final img = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 1200,
+    maxHeight: 1200,
+    imageQuality: 72,
+  );
 
-  Future<void> pickPatch() async {
-    final imgs = await ImagePicker().pickMultiImage();
-    if (imgs.isEmpty) return;
-    setState(() => newPatches.addAll(imgs));
-  }
+  if (img == null) return;
 
-  void removeCurrentPatch(String url) {
-    setState(() {
-      currentPatches.removeWhere((x) => x == url);
-    });
-  }
+  setState(() => mainImage = img);
+}
 
-  void removeNewPatch(XFile file) {
-    setState(() {
-      newPatches.remove(file);
-    });
-  }
+Future<void> pickPatch() async {
+  final imgs = await ImagePicker().pickMultiImage(
+    maxWidth: 1200,
+    maxHeight: 1200,
+    imageQuality: 72,
+  );
+
+  if (imgs.isEmpty) return;
+
+  setState(() => newPatches.addAll(imgs));
+}
+
+  void removeCurrentPatchAt(int index) {
+  if (index < 0 || index >= currentPatches.length) return;
+
+  setState(() {
+    currentPatches.removeAt(index);
+  });
+}
+
+void removeNewPatchAt(int index) {
+  if (index < 0 || index >= newPatches.length) return;
+
+  setState(() {
+    newPatches.removeAt(index);
+  });
+}
 
   Future<void> save() async {
-    if (loading) return;
+  if (loading) return;
 
-    setState(() => loading = true);
+  setState(() => loading = true);
 
-    try {
-      final storage = StorageService();
-      String mainUrl = widget.item.imgPrincipalUrl;
+  try {
+    final storage = StorageService();
+    String mainUrl = widget.item.imgPrincipalUrl;
 
-      if (mainImage != null) {
-        mainUrl = await storage.uploadXFile(mainImage!, 'pedidos/principal');
-      }
-
-      final patchUrls = <String>[...currentPatches];
-
-      for (final p in newPatches) {
-        final url = await storage.uploadXFile(p, 'pedidos/parches');
-        patchUrls.add(url);
-      }
-
-      await OrderRepository().updateItemImages(
-        item: widget.item,
-        imgPrincipalUrl: mainUrl,
-        imgsParchesUrl: patchUrls,
-      );
-
-      if (!mounted) return;
-
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imágenes actualizadas')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudieron guardar las imágenes: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => loading = false);
+    if (mainImage != null) {
+      mainUrl = await storage.uploadXFile(mainImage!, 'pedidos/principal');
     }
+
+    final uploadedPatches = await Future.wait(
+      newPatches.map((p) => storage.uploadXFile(p, 'pedidos/parches')),
+    );
+
+    final patchUrls = <String>[
+      ...currentPatches.where((x) => x.trim().isNotEmpty),
+      ...uploadedPatches.where((x) => x.trim().isNotEmpty),
+    ];
+
+    await OrderRepository().updateItemImages(
+      item: widget.item,
+      imgPrincipalUrl: mainUrl,
+      imgsParchesUrl: patchUrls,
+    );
+
+    if (!mounted) return;
+
+    Navigator.pop(context);
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No se pudieron guardar las imágenes: $e')),
+    );
+  } finally {
+    if (mounted) setState(() => loading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1856,7 +1882,9 @@ class _ImagesDialogState extends State<_ImagesDialog> {
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
-                    children: currentPatches.map((url) {
+                    children: currentPatches.asMap().entries.map((entry) {
+  final index = entry.key;
+  final url = entry.value;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -1880,7 +1908,7 @@ class _ImagesDialogState extends State<_ImagesDialog> {
                             right: -7,
                             top: -7,
                             child: InkWell(
-                              onTap: loading ? null : () => removeCurrentPatch(url),
+                              onTap: loading ? null : () => removeCurrentPatchAt(index),
                               borderRadius: BorderRadius.circular(999),
                               child: Container(
                                 decoration: const BoxDecoration(
@@ -1917,7 +1945,9 @@ class _ImagesDialogState extends State<_ImagesDialog> {
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
-                    children: newPatches.map((file) {
+                    children: newPatches.asMap().entries.map((entry) {
+  final index = entry.key;
+  final file = entry.value;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -1946,7 +1976,7 @@ class _ImagesDialogState extends State<_ImagesDialog> {
                             right: -7,
                             top: -7,
                             child: InkWell(
-                              onTap: loading ? null : () => removeNewPatch(file),
+                              onTap: loading ? null : () => removeNewPatchAt(index),
                               borderRadius: BorderRadius.circular(999),
                               child: Container(
                                 decoration: const BoxDecoration(
