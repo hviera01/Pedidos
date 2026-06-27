@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
@@ -18,8 +19,51 @@ class InventarioScreen extends StatefulWidget {
 
 class _InventarioScreenState extends State<InventarioScreen> {
   final repo = ProductRepository();
-  String search = '';
-  String filter = 'conStock';
+final searchController = TextEditingController();
+Timer? searchDebounce;
+String search = '';
+String filter = 'conStock';
+
+String normalize(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u')
+      .replaceAll('ñ', 'n')
+      .trim();
+}
+
+void changeSearch(String value) {
+  searchDebounce?.cancel();
+  searchDebounce = Timer(const Duration(milliseconds: 180), () {
+    if (mounted) setState(() => search = value);
+  });
+}
+
+List<Product> filteredProducts(List<Product> products) {
+  final query = normalize(search);
+  final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+
+  return products.where((x) {
+    final text = normalize('${x.codigo} ${x.descripcion}');
+    final matchText = words.isEmpty || words.every(text.contains);
+    final matchStock = filter == 'todos' ||
+        (filter == 'conStock' && x.stock > 0) ||
+        (filter == 'sinStock' && x.stock <= 0);
+
+    return matchText && matchStock;
+  }).toList();
+}
+
+@override
+void dispose() {
+  searchDebounce?.cancel();
+  searchController.dispose();
+  super.dispose();
+}
 
   Future<void> openForm([Product? product]) async {
     await showDialog(
@@ -67,30 +111,10 @@ class _InventarioScreenState extends State<InventarioScreen> {
 Widget build(BuildContext context) {
   final mobile = MediaQuery.of(context).size.width < 760;
 
-  String normalize(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll('á', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ñ', 'n')
-        .trim();
-  }
-
   return PageFrame(
-    title: 'Inventario',
-    subtitle: 'Productos, imágenes, precios, existencias y ajustes de stock.',
-    actions: mobile
-        ? []
-        : [
-            FilledButton.icon(
-              onPressed: () => openForm(),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Nuevo producto'),
-            ),
-          ],
+    title: '',
+    subtitle: '',
+    actions: const [],
     child: StreamBuilder<List<Product>>(
       stream: repo.streamProducts(),
       builder: (context, snap) {
@@ -107,120 +131,71 @@ Widget build(BuildContext context) {
           );
         }
 
-        final query = normalize(search);
-
-        var list = (snap.data ?? []).where((x) {
-          final text = normalize('${x.codigo} ${x.descripcion}');
-          final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-
-          final matchText = words.isEmpty || words.every(text.contains);
-          final matchStock = filter == 'todos' ||
-              (filter == 'conStock' && x.stock > 0) ||
-              (filter == 'sinStock' && x.stock <= 0);
-
-          return matchText && matchStock;
-        }).toList();
+        final list = filteredProducts(snap.data ?? []);
 
         if (mobile) {
           return SizedBox(
-            height: MediaQuery.of(context).size.height - 115,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
+            height: MediaQuery.of(context).size.height - 95,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              cacheExtent: 250,
-              itemCount: list.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () => openForm(),
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Nuevo producto'),
-                          ),
+              cacheExtent: 900,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _InventoryTop(
+                    mobile: true,
+                    controller: searchController,
+                    filter: filter,
+                    onSearch: changeSearch,
+                    onFilter: (v) => setState(() => filter = v),
+                    onNew: () => openForm(),
+                  ),
+                ),
+                if (list.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                          'No se encontraron productos.',
+                          style: TextStyle(color: AppTheme.muted),
                         ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.search_rounded),
-                            labelText: 'Buscar producto',
-                          ),
-                          onChanged: (v) => setState(() => search = v),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: filter,
-                          decoration: const InputDecoration(labelText: 'Stock'),
-                          items: const [
-                            DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
-                            DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
-                            DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                          ],
-                          onChanged: (v) => setState(() => filter = v ?? filter),
-                        ),
-                        if (list.isEmpty) ...[
-                          const SizedBox(height: 24),
-                          const Text(
-                            'No se encontraron productos.',
-                            style: TextStyle(color: AppTheme.muted),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  );
-                }
+                  )
+                else
+                  SliverList.builder(
+                    itemCount: list.length,
+                    itemBuilder: (context, index) {
+                      final p = list[index];
 
-                final p = list[index - 1];
-
-                return _ProductCard(
-                  key: ValueKey(p.id),
-                  product: p,
-                  onEdit: () => openForm(p),
-                  onStock: () => openStock(p),
-                  onHistory: () => openHistory(p),
-                  onDelete: () => removeProduct(p),
-                );
-              },
+                      return _ProductCard(
+                        key: ValueKey(p.id),
+                        product: p,
+                        onEdit: () => openForm(p),
+                        onStock: () => openStock(p),
+                        onHistory: () => openHistory(p),
+                        onDelete: () => removeProduct(p),
+                      );
+                    },
+                  ),
+              ],
             ),
           );
         }
 
+        final tableHeight = (MediaQuery.of(context).size.height - 260).clamp(420.0, 900.0);
+
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                SizedBox(
-                  width: 420,
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search_rounded),
-                      labelText: 'Buscar producto',
-                    ),
-                    onChanged: (v) => setState(() => search = v),
-                  ),
-                ),
-                SizedBox(
-                  width: 190,
-                  child: DropdownButtonFormField<String>(
-                    value: filter,
-                    decoration: const InputDecoration(labelText: 'Stock'),
-                    items: const [
-                      DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
-                      DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
-                      DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                    ],
-                    onChanged: (v) => setState(() => filter = v ?? filter),
-                  ),
-                ),
-              ],
+            _InventoryTop(
+              mobile: false,
+              controller: searchController,
+              filter: filter,
+              onSearch: changeSearch,
+              onFilter: (v) => setState(() => filter = v),
+              onNew: () => openForm(),
             ),
             const SizedBox(height: 16),
             if (list.isEmpty)
@@ -238,6 +213,7 @@ Widget build(BuildContext context) {
 
                   return Container(
                     width: double.infinity,
+                    height: tableHeight,
                     decoration: BoxDecoration(
                       color: AppTheme.panel,
                       borderRadius: BorderRadius.circular(22),
@@ -251,15 +227,25 @@ Widget build(BuildContext context) {
                         child: Column(
                           children: [
                             const _InventoryHeader(),
-                            ...list.map((p) {
-                              return _ProductRow(
-                                product: p,
-                                onEdit: () => openForm(p),
-                                onStock: () => openStock(p),
-                                onHistory: () => openHistory(p),
-                                onDelete: () => removeProduct(p),
-                              );
-                            }),
+                            Expanded(
+                              child: ListView.builder(
+                                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                                itemCount: list.length,
+                                cacheExtent: 900,
+                                itemBuilder: (context, index) {
+                                  final p = list[index];
+
+                                  return _ProductRow(
+                                    key: ValueKey(p.id),
+                                    product: p,
+                                    onEdit: () => openForm(p),
+                                    onStock: () => openStock(p),
+                                    onHistory: () => openHistory(p),
+                                    onDelete: () => removeProduct(p),
+                                  );
+                                },
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -300,6 +286,113 @@ class _InventoryHeader extends StatelessWidget {
   }
 }
 
+class _InventoryTop extends StatelessWidget {
+  final bool mobile;
+  final TextEditingController controller;
+  final String filter;
+  final ValueChanged<String> onSearch;
+  final ValueChanged<String> onFilter;
+  final VoidCallback onNew;
+
+  const _InventoryTop({
+    required this.mobile,
+    required this.controller,
+    required this.filter,
+    required this.onSearch,
+    required this.onFilter,
+    required this.onNew,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Inventario',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Productos, imágenes, precios, existencias y ajustes de stock.',
+          style: TextStyle(color: AppTheme.muted),
+        ),
+      ],
+    );
+
+    final search = TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      decoration: const InputDecoration(
+        prefixIcon: Icon(Icons.search_rounded),
+        labelText: 'Buscar producto',
+      ),
+      onChanged: onSearch,
+    );
+
+    final stock = DropdownButtonFormField<String>(
+      value: filter,
+      decoration: const InputDecoration(labelText: 'Stock'),
+      items: const [
+        DropdownMenuItem(value: 'conStock', child: Text('Con stock')),
+        DropdownMenuItem(value: 'sinStock', child: Text('Sin stock')),
+        DropdownMenuItem(value: 'todos', child: Text('Todos')),
+      ],
+      onChanged: (v) => onFilter(v ?? filter),
+    );
+
+    if (mobile) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            title,
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onNew,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nuevo producto'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            search,
+            const SizedBox(height: 12),
+            stock,
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: title),
+            FilledButton.icon(
+              onPressed: onNew,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nuevo producto'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(width: 420, child: search),
+            SizedBox(width: 190, child: stock),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _ProductRow extends StatelessWidget {
   final Product product;
   final VoidCallback onEdit;
@@ -308,12 +401,13 @@ class _ProductRow extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _ProductRow({
-    required this.product,
-    required this.onEdit,
-    required this.onStock,
-    required this.onHistory,
-    required this.onDelete,
-  });
+  super.key,
+  required this.product,
+  required this.onEdit,
+  required this.onStock,
+  required this.onHistory,
+  required this.onDelete,
+});
 
   @override
   Widget build(BuildContext context) {
@@ -390,20 +484,22 @@ class _ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-  width: double.infinity,
-  height: 210,
-  padding: const EdgeInsets.all(10),
-  decoration: BoxDecoration(
-    color: AppTheme.panel2,
-    borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: AppTheme.border),
-  ),
-  child: SmartNetworkImage(
-    url: product.imgUrl,
+          RepaintBoundary(
+  child: Container(
     width: double.infinity,
-    height: 210,
-    fit: BoxFit.contain,
+    height: 170,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppTheme.panel2,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppTheme.border),
+    ),
+    child: SmartNetworkImage(
+      url: product.imgUrl,
+      width: double.infinity,
+      height: 170,
+      fit: BoxFit.contain,
+    ),
   ),
 ),
           const SizedBox(height: 12),
