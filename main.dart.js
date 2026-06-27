@@ -111935,7 +111935,7 @@ case 4:p.Y(new A.aLJ(p,o))
 p.c.ah(t.Pu).f.o8(B.af_)
 case 1:return A.r(q,r)}})
 return A.t($async$z9,r)},
-pS(){var s=0,r=A.u(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e
+pS(){var s=0,r=A.u(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e,d
 var $async$pS=A.p(function(a,b){if(a===1){o.push(b)
 s=p}for(;;)switch(s){case 0:p=4
 i=n.e
@@ -111951,32 +111951,42 @@ s=11
 return A.n(n.d.E7(m),$async$pS)
 case 11:l=A.aWf().gzm()+A.aWf().gcT()
 k=A.m(J.b9q(l,"/")?l:A.m(l)+"/")+"#/public/"+A.m(m)
-s=12
-return A.n(A.DT(new A.tg(k)),$async$pS)
-case 12:h=n.c
-if(h==null){s=1
-break}h.ah(t.Pu).f.o8(A.a_x(null,null,null,null,null,B.A,null,A.ah("Enlace copiado: "+A.m(k),null,null,null,null,null,null,null,null),null,B.RL,null,null,null,null,null,null,null,null,null,null))
-p=14
-s=17
+p=13
+s=16
 return A.n(A.aVS(k),$async$pS)
-case 17:p=4
-s=16
+case 16:p=4
+s=15
 break
-case 14:p=13
+case 13:p=12
 f=o.pop()
-s=16
+s=15
 break
-case 13:s=4
+case 12:s=4
 break
-case 16:p=2
+case 15:p=18
+s=21
+return A.n(A.DT(new A.tg(k)),$async$pS)
+case 21:p=4
+s=20
+break
+case 18:p=17
+e=o.pop()
+s=20
+break
+case 17:s=4
+break
+case 20:g=n.c
+if(g==null){s=1
+break}g.ah(t.Pu).f.o8(A.a_x(null,null,null,null,null,B.A,null,A.ah("Enlace listo: "+A.m(k),null,null,null,null,null,null,null,null),null,B.RL,null,null,null,null,null,null,null,null,null,null))
+p=2
 s=6
 break
 case 4:p=3
-e=o.pop()
-j=A.ac(e)
-h=n.c
-if(h==null){s=1
-break}h.ah(t.Pu).f.o8(A.a_x(null,null,null,null,null,B.A,null,A.ah("No se pudo compartir: "+A.m(j),null,null,null,null,null,null,null,null),null,B.er,null,null,null,null,null,null,null,null,null,null))
+d=o.pop()
+j=A.ac(d)
+g=n.c
+if(g==null){s=1
+break}g.ah(t.Pu).f.o8(A.a_x(null,null,null,null,null,B.A,null,A.ah("No se pudo compartir: "+A.m(j),null,null,null,null,null,null,null,null),null,B.er,null,null,null,null,null,null,null,null,null,null))
 s=6
 break
 case 3:s=2
@@ -112031,9 +112041,10 @@ case 3:return A.r(null,r)}})
 return A.t($async$u5,r)},
 F(a){var s,r,q,p=this
 if(p.f)return B.fd
-s=A.b([A.f7(B.fx,B.akN,new A.aLx(p)),A.f7(B.TZ,B.akY,p.ga7D()),A.f7(B.hN,B.lq,p.gaDh()),A.f7(B.TA,B.KR,p.gavN()),A.f7(B.TQ,B.KT,p.gaCg())],t.p)
-if(p.e!=null)s.push(A.f7(B.TN,B.al2,new A.aLy(p,a)))
-r=p.e
+s=t.p
+if(A.bt(a,null,t.l).w.a.a<760)s=A.b([],s)
+else{s=A.b([A.f7(B.fx,B.akN,new A.aLx(p)),A.f7(B.TZ,B.akY,p.ga7D()),A.f7(B.hN,B.lq,p.gaDh()),A.f7(B.TA,B.KR,p.gavN()),A.f7(B.TQ,B.KT,p.gaCg())],s)
+if(p.e!=null)s.push(A.f7(B.TN,B.al2,new A.aLy(p,a)))}r=p.e
 q=p.d
 r=r==null?q.rY():q.Ho(r)
 return new A.l3("Pedidos","Control de camisas, fotos, parches, pagos y saldo pendiente.",A.kf(new A.aLz(p),r,t.VO),s,null)}}
@@ -112120,19 +112131,22 @@ q=f.k0(s,0,new A.aLs())
 p=f.k0(s,0,new A.aLt())
 o=t.l
 n=A.bt(a,i,o).w.a.a<760
-m=A.b([new A.a69(A.b([new A.oN("Camisas",""+f.gH(s),B.cW),new A.oN("Total","L "+A.dt(h,g).d3(r),B.Tq),new A.oN("Pagado","L "+A.dt(h,g).d3(q),B.fw),new A.oN("Pendiente","L "+A.dt(h,g).d3(p),B.tH)],t.Xd),i),B.d3],t.p)
-if(!n&&f.gc8(s)){l=this.a
-m.push(new A.cx(B.iG,i,i,new A.zP(B.Xz,A.cN([l.r],t.y),new A.aLu(l),i,t.Y0),i))}m.push(B.bz)
-if(b.a===B.el)m.push(B.fd)
-else if(f.gab(s))m.push(B.aqc)
+m=t.p
+l=A.b([],m)
+k=!n
+if(k)B.b.O(l,A.b([new A.a69(A.b([new A.oN("Camisas",""+f.gH(s),B.cW),new A.oN("Total","L "+A.dt(h,g).d3(r),B.Tq),new A.oN("Pagado","L "+A.dt(h,g).d3(q),B.fw),new A.oN("Pendiente","L "+A.dt(h,g).d3(p),B.tH)],t.Xd),i),B.d3],m))
+if(k&&f.gc8(s)){m=this.a
+l.push(new A.cx(B.iG,i,i,new A.zP(B.Xz,A.cN([m.r],t.y),new A.aLu(m),i,t.Y0),i))}l.push(B.bz)
+if(b.a===B.el)l.push(B.fd)
+else if(f.gab(s))l.push(B.aqc)
 else if(n){o=A.bt(a,i,o).w
-m.push(A.bf(A.b0r(650,new A.aLv(this.a,s),f.gH(s),i,B.qi),o.a.b*0.72,i))}else{f=this.a
+l.push(A.bf(A.b0r(650,new A.aLv(this.a,s),f.gH(s),i,B.qi),o.a.b-145,i))}else{f=this.a
 o=f.gaDc()
-l=f.gaDj()
+m=f.gaDj()
 k=f.gaDm()
 j=f.gaxw()
-if(f.r)m.push(new A.a4n(s,o,l,k,j,i))
-else m.push(new A.a4o(s,o,l,k,j,i))}return A.bm(m,B.r,B.m,B.p)},
+if(f.r)l.push(new A.a4n(s,o,m,k,j,i))
+else l.push(new A.a4o(s,o,m,k,j,i))}return A.bm(l,B.r,B.m,B.p)},
 $S:755}
 A.aLr.prototype={
 $2(a,b){return a+b.x},
