@@ -21,7 +21,6 @@ class _InventarioScreenState extends State<InventarioScreen> {
   final repo = ProductRepository();
 final searchController = TextEditingController();
 final searchFocus = FocusNode();
-Timer? searchDebounce;
 final _searchNotifier = ValueNotifier<String>('');
 final _filterNotifier = ValueNotifier<String>('conStock');
 List<Product> _cachedRaw = [];
@@ -43,11 +42,8 @@ String normalize(String value) {
       .trim();
 }
 
-void changeSearch(String value) {
-  searchDebounce?.cancel();
-  searchDebounce = Timer(const Duration(milliseconds: 350), () {
-    if (mounted) _searchNotifier.value = value;
-  });
+void commitSearch() {
+  _searchNotifier.value = searchController.text;
 }
 
 List<Product> filteredProducts(List<Product> products) {
@@ -74,7 +70,6 @@ List<Product> filteredProducts(List<Product> products) {
 
 @override
 void dispose() {
-  searchDebounce?.cancel();
   searchController.dispose();
   searchFocus.dispose();
   _searchNotifier.dispose();
@@ -168,7 +163,7 @@ Widget build(BuildContext context) {
                   controller: searchController,
                   focusNode: searchFocus,
                   filter: filter,
-                  onSearch: changeSearch,
+                  onSearch: commitSearch,
                   onFilter: (v) => _filterNotifier.value = v,
                   onNew: () => openForm(),
                 ),
@@ -186,21 +181,23 @@ Widget build(BuildContext context) {
                     ),
                   )
                 else
-                  SliverList.builder(
-                    itemCount: list.length,
-                    itemBuilder: (context, index) {
-                      final p = list[index];
-
-                      return _ProductCard(
-                        key: ValueKey(p.id),
-                        product: p,
-                        onEdit: () => openForm(p),
-                        onStock: () => openStock(p),
-                        onHistory: () => openHistory(p),
-                        onDelete: () => removeProduct(p),
-                      );
-                    },
-                  ),
+                 SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final p = list[index];
+                        return _ProductCard(
+                          key: ValueKey(p.id),
+                          product: p,
+                          onEdit: () => openForm(p),
+                          onStock: () => openStock(p),
+                          onHistory: () => openHistory(p),
+                          onDelete: () => removeProduct(p),
+                        );
+                      },
+                      childCount: list.length,
+                      addAutomaticKeepAlives: true,
+                    ),
+                  ), 
               ],
             ),
           );
@@ -216,7 +213,7 @@ Widget build(BuildContext context) {
               controller: searchController,
               focusNode: searchFocus,
               filter: filter,
-              onSearch: changeSearch,
+              onSearch: commitSearch,
               onFilter: (v) => _filterNotifier.value = v,
               onNew: () => openForm(),
             ),
@@ -316,7 +313,7 @@ class _InventoryTop extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final String filter;
-  final ValueChanged<String> onSearch;
+  final VoidCallback onSearch;
   final ValueChanged<String> onFilter;
   final VoidCallback onNew;
 
@@ -351,11 +348,16 @@ class _InventoryTop extends StatelessWidget {
       controller: controller,
       focusNode: focusNode,
       textInputAction: TextInputAction.search,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search_rounded),
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search_rounded),
         labelText: 'Buscar producto',
+        suffixIcon: IconButton(
+          onPressed: onSearch,
+          icon: const Icon(Icons.arrow_forward_rounded),
+          tooltip: 'Buscar',
+        ),
       ),
-      onChanged: onSearch,
+      onSubmitted: (_) => onSearch(),
     );
 
     final stock = DropdownButtonFormField<String>(
@@ -485,7 +487,7 @@ class _ProductRow extends StatelessWidget {
   }
 }
 
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback onEdit;
   final VoidCallback onStock;
@@ -502,7 +504,16 @@ class _ProductCard extends StatelessWidget {
   });
 
   @override
+  State<_ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+ @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -515,33 +526,33 @@ class _ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           RepaintBoundary(
-  child: Container(
-    width: double.infinity,
-    height: 170,
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      color: AppTheme.panel2,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppTheme.border),
-    ),
-    child: SmartNetworkImage(
-      url: product.imgUrl,
-      width: double.infinity,
-      height: 170,
-      fit: BoxFit.contain,
-    ),
-  ),
-),
+            child: Container(
+              width: double.infinity,
+              height: 170,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.panel2,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: SmartNetworkImage(
+                url: widget.product.imgUrl,
+                width: double.infinity,
+                height: 170,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          Text(product.descripcion, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          Text(widget.product.descripcion, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
           const SizedBox(height: 6),
-          Text(product.codigo, style: const TextStyle(color: AppTheme.muted)),
+          Text(widget.product.codigo, style: const TextStyle(color: AppTheme.muted)),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _MiniBox(title: 'Stock', value: '${product.stock}')),
+              Expanded(child: _MiniBox(title: 'Stock', value: '${widget.product.stock}')),
               const SizedBox(width: 8),
-              Expanded(child: _MiniBox(title: 'Precio', value: Formatters.money(product.precio))),
+              Expanded(child: _MiniBox(title: 'Precio', value: Formatters.money(widget.product.precio))),
             ],
           ),
           const SizedBox(height: 12),
@@ -549,10 +560,10 @@ class _ProductCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.icon(onPressed: onEdit, icon: const Icon(Icons.edit_rounded), label: const Text('Editar')),
-              OutlinedButton.icon(onPressed: onStock, icon: const Icon(Icons.swap_vert_rounded), label: const Text('Stock')),
-              OutlinedButton.icon(onPressed: onHistory, icon: const Icon(Icons.history_rounded), label: const Text('Historial')),
-              OutlinedButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete_rounded, color: AppTheme.danger), label: const Text('Eliminar')),
+              FilledButton.icon(onPressed: widget.onEdit, icon: const Icon(Icons.edit_rounded), label: const Text('Editar')),
+              OutlinedButton.icon(onPressed: widget.onStock, icon: const Icon(Icons.swap_vert_rounded), label: const Text('Stock')),
+              OutlinedButton.icon(onPressed: widget.onHistory, icon: const Icon(Icons.history_rounded), label: const Text('Historial')),
+              OutlinedButton.icon(onPressed: widget.onDelete, icon: const Icon(Icons.delete_rounded, color: AppTheme.danger), label: const Text('Eliminar')),
             ],
           ),
         ],
