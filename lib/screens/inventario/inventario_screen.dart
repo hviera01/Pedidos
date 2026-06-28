@@ -135,7 +135,54 @@ Widget build(BuildContext context) {
           stream: repo.streamProducts(),
           builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          if (mobile) {
+            return SizedBox(
+              height: MediaQuery.of(context).size.height - 95,
+              child: CustomScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _InventoryTop(
+                      mobile: true,
+                      controller: searchController,
+                      focusNode: searchFocus,
+                      filter: filter,
+                      onSearch: commitSearch,
+                      onFilter: (v) => _filterNotifier.value = v,
+                      onNew: () => openForm(),
+                    ),
+                  ),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const _SkeletonCard(),
+                      childCount: 5,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InventoryTop(
+                mobile: false,
+                controller: searchController,
+                focusNode: searchFocus,
+                filter: filter,
+                onSearch: commitSearch,
+                onFilter: (v) => _filterNotifier.value = v,
+                onNew: () => openForm(),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: 6,
+                  itemBuilder: (_, __) => const _SkeletonCard(),
+                ),
+              ),
+            ],
+          );
         }
 
         if (snap.hasError) {
@@ -308,6 +355,77 @@ class _InventoryHeader extends StatelessWidget {
   }
 }
 
+class _SearchField extends StatefulWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onSearch;
+
+  const _SearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.onSearch,
+  });
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    final has = widget.controller.text.isNotEmpty;
+    if (has != _hasText) setState(() => _hasText = has);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _clear() {
+    widget.controller.clear();
+    widget.onSearch();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: widget.controller,
+      focusNode: widget.focusNode,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search_rounded),
+        labelText: 'Buscar producto',
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_hasText)
+              IconButton(
+                onPressed: _clear,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Limpiar',
+              ),
+            IconButton(
+              onPressed: widget.onSearch,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              tooltip: 'Buscar',
+            ),
+          ],
+        ),
+      ),
+      onSubmitted: (_) => widget.onSearch(),
+    );
+  }
+}
+
 class _InventoryTop extends StatelessWidget {
   final bool mobile;
   final TextEditingController controller;
@@ -344,20 +462,10 @@ class _InventoryTop extends StatelessWidget {
       ],
     );
 
-    final search = TextField(
+    final search = _SearchField(
       controller: controller,
       focusNode: focusNode,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search_rounded),
-        labelText: 'Buscar producto',
-        suffixIcon: IconButton(
-          onPressed: onSearch,
-          icon: const Icon(Icons.arrow_forward_rounded),
-          tooltip: 'Buscar',
-        ),
-      ),
-      onSubmitted: (_) => onSearch(),
+      onSearch: onSearch,
     );
 
     final stock = DropdownButtonFormField<String>(
@@ -535,11 +643,31 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppTheme.border),
               ),
-              child: SmartNetworkImage(
-                url: widget.product.imgUrl,
-                width: double.infinity,
-                height: 170,
-                fit: BoxFit.contain,
+             child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: AppTheme.panel2,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                  SmartNetworkImage(
+                    url: widget.product.imgUrl,
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.contain,
+                  ),
+                ],
               ),
             ),
           ),
@@ -566,6 +694,49 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
               OutlinedButton.icon(onPressed: widget.onDelete, icon: const Icon(Icons.delete_rounded, color: AppTheme.danger), label: const Text('Eliminar')),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.panel,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            height: 170,
+            decoration: BoxDecoration(
+              color: AppTheme.panel2,
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 18, width: 200, decoration: BoxDecoration(color: AppTheme.panel2, borderRadius: BorderRadius.circular(6))),
+          const SizedBox(height: 8),
+          Container(height: 13, width: 100, decoration: BoxDecoration(color: AppTheme.panel2, borderRadius: BorderRadius.circular(6))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: Container(height: 56, decoration: BoxDecoration(color: AppTheme.panel2, borderRadius: BorderRadius.circular(16)))),
+              const SizedBox(width: 8),
+              Expanded(child: Container(height: 56, decoration: BoxDecoration(color: AppTheme.panel2, borderRadius: BorderRadius.circular(16)))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 36, width: double.infinity, decoration: BoxDecoration(color: AppTheme.panel2, borderRadius: BorderRadius.circular(10))),
         ],
       ),
     );
