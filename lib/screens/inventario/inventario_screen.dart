@@ -691,44 +691,40 @@ class _CachedProductImage extends StatelessWidget {
         ),
       );
     }
-    return Image.network(
-      url,
-      width: double.infinity,
-      height: height,
-      fit: BoxFit.contain,
-      cacheWidth: 600,
-      gaplessPlayback: true,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return Container(
+   return Stack(
+      key: ValueKey(url),
+      alignment: Alignment.center,
+      fit: StackFit.passthrough,
+      children: [
+        Image.network(
+          url,
           width: double.infinity,
           height: height,
-          decoration: BoxDecoration(
-            color: AppTheme.panel2,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Center(
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        );
-      },
-      errorBuilder: (context, error, stack) {
-        return Container(
-          width: double.infinity,
-          height: height,
-          decoration: BoxDecoration(
-            color: AppTheme.panel2,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Center(
-            child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
-          ),
-        );
-      },
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded) return child;
+            return AnimatedOpacity(
+              opacity: frame == null ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              child: child,
+            );
+          },
+          errorBuilder: (context, error, stack) {
+            return Container(
+              width: double.infinity,
+              height: height,
+              decoration: BoxDecoration(
+                color: AppTheme.panel2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

@@ -341,13 +341,22 @@ class OrderRepository {
       return;
     }
 
-    await db.collection('pedidos').doc(item.pedidoId).collection('camisas').doc(item.id).update({
+    final pedidoRef = db.collection('pedidos').doc(item.pedidoId);
+    final camisaRef = pedidoRef.collection('camisas').doc(item.id);
+    final pagoRef = db.collection('pagos').doc();
+
+    final debeAnterior = item.debe;
+    final debeNuevo = nuevoDebe < 0 ? 0 : nuevoDebe;
+
+    final batch = db.batch();
+
+    batch.update(camisaRef, {
       'pagado': nuevoPagado,
-      'debe': nuevoDebe < 0 ? 0 : nuevoDebe,
+      'debe': debeNuevo,
       'actualizadoEn': FieldValue.serverTimestamp(),
     });
 
-    await db.collection('pagos').add({
+    batch.set(pagoRef, {
       'pedidoId': item.pedidoId,
       'creditoId': null,
       'camisaId': item.id,
@@ -359,7 +368,13 @@ class OrderRepository {
       'creadoEn': FieldValue.serverTimestamp(),
     });
 
-    await recalculateOrder(item.pedidoId);
+    batch.set(pedidoRef, {
+      'totalPagado': FieldValue.increment(monto),
+      'totalDebe': FieldValue.increment(debeNuevo - debeAnterior),
+      'actualizadoEn': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
   }
 
   Future<void> setDelivered(OrderItem item, bool value) async {

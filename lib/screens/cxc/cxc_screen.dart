@@ -490,21 +490,13 @@ class _CxcPayDialogState extends State<_CxcPayDialog> {
       error = '';
     });
 
-    try {
-      await OrderRepository().updatePayment(widget.item, value);
-
-      final snap = await FirebaseFirestore.instance
-          .collection('pagos')
-          .where('camisaId', isEqualTo: widget.item.id)
-          .limit(1)
-          .get();
-
-      if (snap.docs.isNotEmpty) {
-        await snap.docs.first.reference.set({
-          'metodo': metodo,
-          'nota': nota.text.trim(),
-        }, SetOptions(merge: true));
-      }
+   try {
+      await OrderRepository().updatePayment(
+        widget.item,
+        value,
+        metodo: metodo,
+        nota: nota.text.trim(),
+      );
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
