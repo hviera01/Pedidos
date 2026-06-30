@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../core/theme/app_theme.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   final Widget child;
 
   const AppShell({
@@ -13,11 +14,46 @@ class AppShell extends StatelessWidget {
   });
 
   @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  Timer? inactivityTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    resetInactivityTimer();
+  }
+
+  @override
+  void dispose() {
+    inactivityTimer?.cancel();
+    super.dispose();
+  }
+
+  void resetInactivityTimer() {
+    inactivityTimer?.cancel();
+
+    final auth = context.read<AuthRepository>();
+    auth.updateActivity();
+
+    inactivityTimer = Timer(AuthRepository.inactivityLimit, () async {
+      await auth.checkInactivity();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthRepository>();
     final isMobile = MediaQuery.of(context).size.width < 900;
 
-    return Scaffold(
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => resetInactivityTimer(),
+      onPointerMove: (_) => resetInactivityTimer(),
+      onPointerSignal: (_) => resetInactivityTimer(),
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF05070C),
         title: const Text(
@@ -72,8 +108,9 @@ class AppShell extends StatelessWidget {
                 const SizedBox(width: 18),
               ],
       ),
-      drawer: isMobile ? _MobileDrawer(auth: auth) : null,
-      body: child,
+              drawer: isMobile ? _MobileDrawer(auth: auth) : null,
+        body: widget.child,
+      ),
     );
   }
 }

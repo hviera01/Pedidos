@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String error = '';
   bool obscurePassword = true;
 
-  static const int sessionHours = 2;
+  static const int sessionHours = 1;
 
   @override
   void dispose() {
