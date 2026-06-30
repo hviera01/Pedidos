@@ -438,29 +438,36 @@ class OrderRepository {
 
   Future<void> deleteOrderCompletely(String pedidoId) async {
     final pid = pedidoId.trim();
-
-    if (pid.isEmpty) {
-      throw Exception('ID de pedido inválido.');
-    }
+    if (pid.isEmpty) throw Exception('ID de pedido inválido.');
 
     final pedidoRef = db.collection('pedidos').doc(pid);
 
-    final camisasSnap = await pedidoRef.collection('camisas').get();
-    final pagosSnap = await db.collection('pagos').where('pedidoId', isEqualTo: pid).get();
+    final results = await Future.wait([
+      pedidoRef.collection('camisas').get(),
+      db.collection('pagos').where('pedidoId', isEqualTo: pid).get(),
+    ]);
 
-    final batch = db.batch();
+    final camisasDocs = (results[0] as QuerySnapshot).docs;
+    final pagosDocs = (results[1] as QuerySnapshot).docs;
+    final allDocs = [...camisasDocs, ...pagosDocs];
 
-    for (final d in camisasSnap.docs) {
-      batch.delete(d.reference);
+    const chunkSize = 490;
+    final chunks = <List>[];
+    for (var i = 0; i < allDocs.length; i += chunkSize) {
+      chunks.add(allDocs.sublist(i, i + chunkSize > allDocs.length ? allDocs.length : i + chunkSize));
     }
 
-    for (final d in pagosSnap.docs) {
-      batch.delete(d.reference);
-    }
+    final futures = chunks.map((chunk) {
+      final batch = db.batch();
+      for (final d in chunk) {
+        batch.delete(d.reference);
+      }
+      return batch.commit();
+    }).toList();
 
-    batch.delete(pedidoRef);
+    futures.add(pedidoRef.delete());
 
-    await batch.commit();
+    await Future.wait(futures);
   }
 
   Future<void> enablePublicAccess(String pedidoId) async {

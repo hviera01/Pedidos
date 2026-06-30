@@ -110,4 +110,23 @@ class ProductRepository {
   Future<void> deleteProduct(String id) async {
     await db.collection('productos').doc(id).delete();
   }
+
+  Future<String> generateCodigo() async {
+    final snap = await db
+        .collection('productos')
+        .orderBy('codigo', descending: true)
+        .limit(50)
+        .get();
+
+    int max = 0;
+
+    for (final d in snap.docs) {
+      final raw = (d.data()['codigo'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+      final n = int.tryParse(raw) ?? 0;
+      if (n > max) max = n;
+    }
+
+    final siguiente = max + 1;
+    return 'PROD-${siguiente.toString().padLeft(4, '0')}';
+  }
 }

@@ -27,6 +27,7 @@ class _PedidosScreenState extends State<PedidosScreen> {
   bool loadingPedidoGuardado = true;
   bool desktopCardsView = false;
   final searchController = TextEditingController();
+  final scrollController = ScrollController();
   String clienteSearch = '';
 
   String normalize(String value) {
@@ -92,6 +93,7 @@ class _PedidosScreenState extends State<PedidosScreen> {
   @override
   void dispose() {
     searchController.dispose();
+    scrollController.dispose();
     super.dispose();
   }
 
@@ -110,7 +112,6 @@ class _PedidosScreenState extends State<PedidosScreen> {
       context: context,
       builder: (_) => _ImagesDialog(item: item),
     );
-    if (mounted) setState(() {});
   }
 
   Future<void> openPay(OrderItem item) async {
@@ -363,6 +364,7 @@ Widget build(BuildContext context) {
           return SizedBox(
             height: MediaQuery.of(context).size.height - 95,
             child: ListView.builder(
+              controller: scrollController,
               physics: const BouncingScrollPhysics(),
               cacheExtent: 700,
               itemCount: items.isEmpty ? 3 : items.length + 2,

@@ -8,6 +8,7 @@ import '../../repositories/product_repository.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/page_frame.dart';
 import '../../widgets/smart_network_image.dart';
+import '../../services/smart_image_url.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InventarioScreen extends StatefulWidget {
@@ -670,61 +671,114 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
   }
 }
 
-class _CachedProductImage extends StatelessWidget {
+class _CachedProductImage extends StatefulWidget {
   final String url;
   final double height;
 
   const _CachedProductImage({required this.url, required this.height});
 
   @override
-  Widget build(BuildContext context) {
-    if (url.isEmpty) {
-      return Container(
-        width: double.infinity,
-        height: height,
-        decoration: BoxDecoration(
-          color: AppTheme.panel2,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Center(
-          child: Icon(Icons.image_not_supported_rounded, color: AppTheme.muted),
-        ),
-      );
+  State<_CachedProductImage> createState() => _CachedProductImageState();
+}
+
+class _CachedProductImageState extends State<_CachedProductImage> {
+  late Future<String> _resolved;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolved = SmartImageUrl.resolve(widget.url);
+  }
+
+  @override
+  void didUpdateWidget(_CachedProductImage old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _resolved = SmartImageUrl.resolve(widget.url);
     }
-   return Stack(
-      key: ValueKey(url),
-      alignment: Alignment.center,
-      fit: StackFit.passthrough,
-      children: [
-        Image.network(
-          url,
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.url.isEmpty) {
+      return _placeholder();
+    }
+
+    return FutureBuilder<String>(
+      key: ValueKey(widget.url),
+      future: _resolved,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return _loading();
+        }
+
+        final resolved = snap.data ?? '';
+
+        if (resolved.isEmpty) {
+          return _placeholder();
+        }
+
+        return Image.network(
+          resolved,
+          key: ValueKey(resolved),
           width: double.infinity,
-          height: height,
+          height: widget.height,
           fit: BoxFit.contain,
           gaplessPlayback: true,
           frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
             if (wasSynchronouslyLoaded) return child;
-            return AnimatedOpacity(
-              opacity: frame == null ? 0 : 1,
-              duration: const Duration(milliseconds: 200),
-              child: child,
-            );
+            if (frame == null) return _loading();
+            return child;
           },
-          errorBuilder: (context, error, stack) {
-            return Container(
-              width: double.infinity,
-              height: height,
-              decoration: BoxDecoration(
-                color: AppTheme.panel2,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
-                child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
-              ),
-            );
-          },
+          errorBuilder: (context, error, stack) => _broken(),
+        );
+      },
+    );
+  }
+
+  Widget _loading() {
+    return Container(
+      width: double.infinity,
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: AppTheme.panel2,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: double.infinity,
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: AppTheme.panel2,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: Icon(Icons.image_not_supported_rounded, color: AppTheme.muted),
+      ),
+    );
+  }
+
+  Widget _broken() {
+    return Container(
+      width: double.infinity,
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: AppTheme.panel2,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
+      ),
     );
   }
 }
@@ -852,7 +906,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   }
 }
 
-  Future<void> save() async {
+ Future<void> save() async {
     if (loading) return;
     if (descripcion.text.trim().isEmpty) return;
 
@@ -865,10 +919,15 @@ class _ProductDialogState extends State<_ProductDialog> {
         imgUrl = await StorageService().uploadXFile(image!, 'productos');
       }
 
+      String codigoFinal = codigo.text.trim();
+      if (codigoFinal.isEmpty && widget.product == null) {
+        codigoFinal = await ProductRepository().generateCodigo();
+      }
+
       await ProductRepository().saveProduct(
         Product(
           id: widget.product?.id ?? '',
-          codigo: codigo.text.trim(),
+          codigo: codigoFinal,
           descripcion: descripcion.text.trim(),
           precio: double.tryParse(precio.text.trim()) ?? 0,
           stock: int.tryParse(stock.text.trim()) ?? 0,
