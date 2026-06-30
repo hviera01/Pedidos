@@ -26,6 +26,35 @@ class _PedidosScreenState extends State<PedidosScreen> {
   String? selectedPedidoId;
   bool loadingPedidoGuardado = true;
   bool desktopCardsView = false;
+  final searchController = TextEditingController();
+  String clienteSearch = '';
+
+  String normalize(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .trim();
+  }
+
+  void commitSearch() {
+    setState(() => clienteSearch = searchController.text);
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    setState(() => clienteSearch = '');
+  }
+
+  List<OrderItem> filterByCliente(List<OrderItem> items) {
+    if (clienteSearch.trim().isEmpty) return items;
+    final q = normalize(clienteSearch);
+    return items.where((x) => normalize(x.clienteNombre).contains(q)).toList();
+  }
 
   String get _activeKey {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
@@ -60,6 +89,12 @@ class _PedidosScreenState extends State<PedidosScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> openForm([OrderItem? item]) async {
   await showDialog(
     context: context,
@@ -75,6 +110,7 @@ class _PedidosScreenState extends State<PedidosScreen> {
       context: context,
       builder: (_) => _ImagesDialog(item: item),
     );
+    if (mounted) setState(() {});
   }
 
   Future<void> openPay(OrderItem item) async {
@@ -191,30 +227,62 @@ Future<void> deleteItem(OrderItem item) async {
   }
 }
 
-  Future<void> closeOrder() async {
+ Future<void> closeOrder() async {
+    if (selectedPedidoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay un pedido activo para cerrar')),
+      );
+      return;
+    }
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.panel,
         title: const Text('Cerrar pedido'),
         content: const Text('Se cerrará el pedido activo.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Cerrar'),
           ),
         ],
       ),
     );
 
-    if (ok == true) {
-      await repo.closeOrder(selectedPedidoId);
+    if (ok != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final pedidoIdToClose = selectedPedidoId;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await repo.closeOrder(pedidoIdToClose);
       await guardarPedidoActivo(null);
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
       setState(() => selectedPedidoId = null);
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pedido cerrado correctamente')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo cerrar el pedido: $e')),
+      );
     }
   }
 
@@ -280,7 +348,8 @@ Widget build(BuildContext context) {
           );
         }
 
-        final items = snap.data ?? [];
+        final allItems = snap.data ?? [];
+        final items = filterByCliente(allItems);
         final total = items.fold<double>(0, (a, b) => a + b.totalVenta);
         final pagado = items.fold<double>(0, (a, b) => a + b.pagado);
         final debe = items.fold<double>(0, (a, b) => a + b.debe);
@@ -311,13 +380,20 @@ Widget build(BuildContext context) {
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                       const SizedBox(height: 8),
                         const Text(
                           'Control de camisas, fotos, parches, pagos y saldo pendiente.',
                           style: TextStyle(
                             color: AppTheme.muted,
                             fontSize: 15,
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        _ClienteSearchField(
+                          controller: searchController,
+                          hasText: clienteSearch.isNotEmpty,
+                          onSearch: commitSearch,
+                          onClear: clearSearch,
                         ),
                         const SizedBox(height: 18),
                         Wrap(
@@ -328,7 +404,7 @@ Widget build(BuildContext context) {
                               onPressed: () => openForm(),
                               icon: const Icon(Icons.add_rounded),
                               label: const Text('Agregar camisa'),
-                            ),
+                            ), 
                             OutlinedButton.icon(
                               onPressed: share,
                               icon: const Icon(Icons.link_rounded),
@@ -402,6 +478,22 @@ Widget build(BuildContext context) {
               ],
             ),
             const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: _ClienteSearchField(
+                      controller: searchController,
+                      hasText: clienteSearch.isNotEmpty,
+                      onSearch: commitSearch,
+                      onClear: clearSearch,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             if (items.isNotEmpty)
               Align(
                 alignment: Alignment.centerRight,
@@ -451,6 +543,49 @@ Widget build(BuildContext context) {
     ),
   );
 }
+}
+
+class _ClienteSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool hasText;
+  final VoidCallback onSearch;
+  final VoidCallback onClear;
+
+  const _ClienteSearchField({
+    required this.controller,
+    required this.hasText,
+    required this.onSearch,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search_rounded),
+        labelText: 'Buscar por cliente',
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (hasText)
+              IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Limpiar',
+              ),
+            IconButton(
+              onPressed: onSearch,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              tooltip: 'Buscar',
+            ),
+          ],
+        ),
+      ),
+      onSubmitted: (_) => onSearch(),
+    );
+  }
 }
 
 class _KpiData {
@@ -1144,9 +1279,34 @@ class _MobileOrderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('# $index', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+         Row(
+            children: [
+              Text('# $index', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              const Spacer(),
+              InkWell(
+                onTap: () => OrderRepository().setDelivered(item, !item.entregado),
+                borderRadius: BorderRadius.circular(999),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.entregado ? 'Entregado' : 'Pendiente',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        color: item.entregado ? AppTheme.ok : Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      item.entregado ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: item.entregado ? AppTheme.ok : Colors.amber,
+                      size: 26,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           SmartNetworkImage(
@@ -2110,6 +2270,61 @@ class _HistoryDialogState extends State<_HistoryDialog> {
   });
 }
 
+Future<void> _confirmAndDeleteOrder(BuildContext context, String pedidoId) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: AppTheme.panel,
+      title: const Text('Eliminar pedido'),
+      content: const Text('Esto eliminará el pedido, sus camisas, parches y cuentas por cobrar asociadas. Esta acción no se puede deshacer.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+
+  if (ok != true) return;
+  if (!mounted) return;
+
+  final messenger = ScaffoldMessenger.of(context);
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    await OrderRepository().deleteOrderCompletely(pedidoId);
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    setState(() {
+      future = load();
+    });
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Pedido eliminado correctamente')),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    messenger.showSnackBar(
+      SnackBar(content: Text('No se pudo eliminar el pedido: $e')),
+    );
+  }
+}
+
   Future<void> pickDesde() async {
   final d = await showDatePicker(
     context: context,
@@ -2281,13 +2496,23 @@ Future<void> pickHasta() async {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.pop(context, d.id),
-                      icon: const Icon(Icons.open_in_new_rounded),
-                      label: const Text('Abrir pedido'),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.pop(context, d.id),
+                          icon: const Icon(Icons.open_in_new_rounded),
+                          label: const Text('Abrir'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _confirmAndDeleteOrder(context, d.id),
+                        icon: const Icon(Icons.delete_rounded, color: AppTheme.danger),
+                        label: const Text('Eliminar'),
+                        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2343,9 +2568,19 @@ Future<void> pickHasta() async {
                       _HistoryCell(Formatters.money(total)),
                       Padding(
                         padding: const EdgeInsets.all(10),
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context, d.id),
-                          child: const Text('Abrir'),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, d.id),
+                              child: const Text('Abrir'),
+                            ),
+                            IconButton(
+                              onPressed: () => _confirmAndDeleteOrder(context, d.id),
+                              icon: const Icon(Icons.delete_rounded, color: AppTheme.danger),
+                              tooltip: 'Eliminar pedido',
+                            ),
+                          ],
                         ),
                       ),
                     ],

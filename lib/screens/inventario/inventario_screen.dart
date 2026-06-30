@@ -555,15 +555,10 @@ class _ProductRow extends StatelessWidget {
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppTheme.border))),
       child: Row(
         children: [
-          SizedBox(
+        SizedBox(
             width: 120,
             child: RepaintBoundary(
-              child: SmartNetworkImage(
-                url: product.imgUrl,
-                width: 92,
-                height: 66,
-                fit: BoxFit.contain,
-              ),
+              child: _CachedProductImage(url: product.imgUrl, height: 66),
             ),
           ),
           SizedBox(width: 150, child: Text(product.codigo, overflow: TextOverflow.ellipsis)),
@@ -643,32 +638,7 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppTheme.border),
               ),
-             child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: AppTheme.panel2,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-                  SmartNetworkImage(
-                    url: widget.product.imgUrl,
-                    width: double.infinity,
-                    height: 150,
-                    fit: BoxFit.contain,
-                  ),
-                ],
-              ),
+             child: _CachedProductImage(url: widget.product.imgUrl, height: 150),
             ),
           ),
           const SizedBox(height: 12),
@@ -699,6 +669,70 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
     );
   }
 }
+
+class _CachedProductImage extends StatelessWidget {
+  final String url;
+  final double height;
+
+  const _CachedProductImage({required this.url, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          color: AppTheme.panel2,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Center(
+          child: Icon(Icons.image_not_supported_rounded, color: AppTheme.muted),
+        ),
+      );
+    }
+    return Image.network(
+      url,
+      width: double.infinity,
+      height: height,
+      fit: BoxFit.contain,
+      cacheWidth: 600,
+      gaplessPlayback: true,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          width: double.infinity,
+          height: height,
+          decoration: BoxDecoration(
+            color: AppTheme.panel2,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stack) {
+        return Container(
+          width: double.infinity,
+          height: height,
+          decoration: BoxDecoration(
+            color: AppTheme.panel2,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Center(
+            child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard();
 
@@ -904,6 +938,7 @@ class _StockDialogState extends State<_StockDialog> {
   final cantidad = TextEditingController();
   final motivo = TextEditingController(text: 'Ajuste manual');
   String tipo = 'sumar';
+  bool loading = false;
 
   @override
   void dispose() {
@@ -912,24 +947,32 @@ class _StockDialogState extends State<_StockDialog> {
     super.dispose();
   }
 
-  Future<void> save() async {
+ Future<void> save() async {
+    if (loading) return;
+
     final value = int.tryParse(cantidad.text.trim()) ?? 0;
 
     if (value <= 0) {
       return;
     }
 
+    setState(() => loading = true);
+
     final nuevo = tipo == 'sumar' ? widget.product.stock + value : widget.product.stock - value;
 
-    await ProductRepository().adjustStock(
-      product: widget.product,
-      newStock: nuevo < 0 ? 0 : nuevo,
-      motivo: motivo.text.trim(),
-      usuario: 'admin',
-    );
+    try {
+      await ProductRepository().adjustStock(
+        product: widget.product,
+        newStock: nuevo < 0 ? 0 : nuevo,
+        motivo: motivo.text.trim(),
+        usuario: 'admin',
+      );
 
-    if (mounted) {
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -962,8 +1005,13 @@ class _StockDialogState extends State<_StockDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        FilledButton(onPressed: save, child: const Text('Guardar')),
+        TextButton(onPressed: loading ? null : () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: loading ? null : save,
+          child: loading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Guardar'),
+        ),
       ],
     );
   }

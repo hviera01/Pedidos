@@ -21,6 +21,7 @@ class SmartNetworkImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
+      key: ValueKey(url),
       future: SmartImageUrl.resolve(url),
       builder: (context, snap) {
         final resolved = snap.data ?? '';

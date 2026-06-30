@@ -421,6 +421,33 @@ class OrderRepository {
     await closeOrder(null);
   }
 
+  Future<void> deleteOrderCompletely(String pedidoId) async {
+    final pid = pedidoId.trim();
+
+    if (pid.isEmpty) {
+      throw Exception('ID de pedido inválido.');
+    }
+
+    final pedidoRef = db.collection('pedidos').doc(pid);
+
+    final camisasSnap = await pedidoRef.collection('camisas').get();
+    final pagosSnap = await db.collection('pagos').where('pedidoId', isEqualTo: pid).get();
+
+    final batch = db.batch();
+
+    for (final d in camisasSnap.docs) {
+      batch.delete(d.reference);
+    }
+
+    for (final d in pagosSnap.docs) {
+      batch.delete(d.reference);
+    }
+
+    batch.delete(pedidoRef);
+
+    await batch.commit();
+  }
+
   Future<void> enablePublicAccess(String pedidoId) async {
   await db.collection('pedidos').doc(pedidoId).set({
     'publicAccess': true,
