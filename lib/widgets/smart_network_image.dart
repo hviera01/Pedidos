@@ -69,24 +69,23 @@ class SmartNetworkImage extends StatelessWidget {
     }
 
     return Image.network(
-  resolved,
-  width: width,
-  height: height,
-  fit: fit,
-  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-  errorBuilder: (_, __, ___) => _broken(),
-  loadingBuilder: (context, child, progress) {
-    if (progress == null) return child;
-
-    return const Center(
-      child: SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
+      resolved,
+      width: width,
+      height: height,
+      fit: fit,
+      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      errorBuilder: (_, __, ___) => _broken(),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
     );
-  },
-);
   }
 
   Widget _broken() {

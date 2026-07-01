@@ -8,7 +8,6 @@ import '../../repositories/product_repository.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/page_frame.dart';
 import '../../widgets/smart_network_image.dart';
-import '../../services/smart_image_url.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InventarioScreen extends StatefulWidget {
@@ -556,10 +555,15 @@ class _ProductRow extends StatelessWidget {
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppTheme.border))),
       child: Row(
         children: [
-        SizedBox(
+       SizedBox(
             width: 120,
             child: RepaintBoundary(
-              child: _CachedProductImage(url: product.imgUrl, height: 66),
+              child: SmartNetworkImage(
+                url: product.imgUrl,
+                width: 92,
+                height: 66,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           SizedBox(width: 150, child: Text(product.codigo, overflow: TextOverflow.ellipsis)),
@@ -618,6 +622,20 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
  @override
   Widget build(BuildContext context) {
     super.build(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedWidth) {
+          return const SizedBox(
+            height: 100,
+            child: Center(child: Text('Sin ancho', style: TextStyle(color: Colors.red))),
+          );
+        }
+        return _buildCard(context);
+      },
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -639,7 +657,17 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppTheme.border),
               ),
-             child: _CachedProductImage(url: widget.product.imgUrl, height: 150),
+             child: SizedBox(
+                width: double.infinity,
+                height: 150,
+                child: SmartNetworkImage(
+                  url: widget.product.imgUrl,
+                  width: double.infinity,
+                  height: 150,
+                  fit: BoxFit.contain,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -671,117 +699,6 @@ class _ProductCardState extends State<_ProductCard> with AutomaticKeepAliveClien
   }
 }
 
-class _CachedProductImage extends StatefulWidget {
-  final String url;
-  final double height;
-
-  const _CachedProductImage({required this.url, required this.height});
-
-  @override
-  State<_CachedProductImage> createState() => _CachedProductImageState();
-}
-
-class _CachedProductImageState extends State<_CachedProductImage> {
-  late Future<String> _resolved;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolved = SmartImageUrl.resolve(widget.url);
-  }
-
-  @override
-  void didUpdateWidget(_CachedProductImage old) {
-    super.didUpdateWidget(old);
-    if (old.url != widget.url) {
-      _resolved = SmartImageUrl.resolve(widget.url);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.url.isEmpty) {
-      return _placeholder();
-    }
-
-    return FutureBuilder<String>(
-      key: ValueKey(widget.url),
-      future: _resolved,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return _loading();
-        }
-
-        final resolved = snap.data ?? '';
-
-        if (resolved.isEmpty) {
-          return _placeholder();
-        }
-
-        return Image.network(
-          resolved,
-          key: ValueKey(resolved),
-          width: double.infinity,
-          height: widget.height,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            if (frame == null) return _loading();
-            return child;
-          },
-          errorBuilder: (context, error, stack) => _broken(),
-        );
-      },
-    );
-  }
-
-  Widget _loading() {
-    return Container(
-      width: double.infinity,
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: AppTheme.panel2,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      width: double.infinity,
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: AppTheme.panel2,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Center(
-        child: Icon(Icons.image_not_supported_rounded, color: AppTheme.muted),
-      ),
-    );
-  }
-
-  Widget _broken() {
-    return Container(
-      width: double.infinity,
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: AppTheme.panel2,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Center(
-        child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),
-      ),
-    );
-  }
-}
 
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard();
