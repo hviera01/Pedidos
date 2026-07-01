@@ -73,15 +73,16 @@ class SmartNetworkImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
-      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+      gaplessPlayback: true,
       errorBuilder: (_, __, ___) => _broken(),
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
-        return const Center(
+        return Center(
           child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            width: width != null && width! < 60 ? 16 : 22,
+            height: width != null && width! < 60 ? 16 : 22,
+            child: const CircularProgressIndicator(strokeWidth: 2),
           ),
         );
       },
