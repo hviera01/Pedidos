@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../services/smart_image_url.dart';
 
-class SmartNetworkImage extends StatelessWidget {
+class SmartNetworkImage extends StatefulWidget {
   final String url;
   final BoxFit fit;
   final double? width;
@@ -19,29 +19,59 @@ class SmartNetworkImage extends StatelessWidget {
   });
 
   @override
+  State<SmartNetworkImage> createState() => _SmartNetworkImageState();
+}
+
+class _SmartNetworkImageState extends State<SmartNetworkImage> {
+  late Future<String> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = SmartImageUrl.resolve(widget.url);
+  }
+
+  @override
+  void didUpdateWidget(SmartNetworkImage old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _future = SmartImageUrl.resolve(widget.url);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      key: ValueKey(url),
-      future: SmartImageUrl.resolve(url),
+      future: _future,
       builder: (context, snap) {
         final resolved = snap.data ?? '';
 
         return Container(
-          width: width,
-          height: height,
+          width: widget.width,
+          height: widget.height,
           decoration: BoxDecoration(
             color: AppTheme.panel2,
-            borderRadius: borderRadius,
+            borderRadius: widget.borderRadius,
             border: Border.all(color: AppTheme.border),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _image(resolved),
+          child: _image(resolved, snap.connectionState),
         );
       },
     );
   }
 
-  Widget _image(String resolved) {
+  Widget _image(String resolved, ConnectionState state) {
+    if (state != ConnectionState.done) {
+      return const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
     if (resolved.trim().isEmpty) {
       return const Center(
         child: Icon(Icons.image_rounded, color: AppTheme.muted),
@@ -51,9 +81,9 @@ class SmartNetworkImage extends StatelessWidget {
     if (resolved.startsWith('data:image/')) {
       return Image.memory(
         UriData.parse(resolved).contentAsBytes(),
-        width: width,
-        height: height,
-        fit: fit,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
         errorBuilder: (_, __, ___) => _broken(),
       );
     }
@@ -61,28 +91,28 @@ class SmartNetworkImage extends StatelessWidget {
     if (resolved.startsWith('assets/') || resolved.startsWith('img/')) {
       return Image.asset(
         resolved,
-        width: width,
-        height: height,
-        fit: fit,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
         errorBuilder: (_, __, ___) => _broken(),
       );
     }
 
     return Image.network(
       resolved,
-      width: width,
-      height: height,
-      fit: fit,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
       webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => _broken(),
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
-        return Center(
+        return const Center(
           child: SizedBox(
-            width: width != null && width! < 60 ? 16 : 22,
-            height: width != null && width! < 60 ? 16 : 22,
-            child: const CircularProgressIndicator(strokeWidth: 2),
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
         );
       },
