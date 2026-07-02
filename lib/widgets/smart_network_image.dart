@@ -44,8 +44,6 @@ class _SmartNetworkImageState extends State<SmartNetworkImage> {
     return FutureBuilder<String>(
       future: _future,
       builder: (context, snap) {
-        final resolved = snap.data ?? '';
-
         return Container(
           width: widget.width,
           height: widget.height,
@@ -55,23 +53,25 @@ class _SmartNetworkImageState extends State<SmartNetworkImage> {
             border: Border.all(color: AppTheme.border),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _image(resolved, snap.connectionState),
+          child: snap.connectionState != ConnectionState.done
+              ? _spinner()
+              : _image(snap.data ?? ''),
         );
       },
     );
   }
 
-  Widget _image(String resolved, ConnectionState state) {
-    if (state != ConnectionState.done) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
+  Widget _spinner() {
+    return const Center(
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
+  }
 
+  Widget _image(String resolved) {
     if (resolved.trim().isEmpty) {
       return const Center(
         child: Icon(Icons.image_rounded, color: AppTheme.muted),
@@ -106,15 +106,9 @@ class _SmartNetworkImageState extends State<SmartNetworkImage> {
       webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => _broken(),
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        );
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return _spinner();
       },
     );
   }
