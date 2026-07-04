@@ -164,6 +164,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 100,
+                        width: 100,
+                      ),
+                      const SizedBox(height: 20),
                       const Text(
                         'Bienvenido',
                         textAlign: TextAlign.center,

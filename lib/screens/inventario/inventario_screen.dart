@@ -101,21 +101,35 @@ void dispose() {
   Future<void> removeProduct(Product product) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) {
+      builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppTheme.panel,
           title: const Text('Eliminar producto'),
           content: Text('¿Eliminar ${product.descripcion}?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Eliminar')),
           ],
         );
       },
     );
 
-    if (ok == true) {
+    if (ok != true) return;
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
       await repo.deleteProduct(product.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Producto eliminado')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar: $e')),
+      );
     }
   }
 

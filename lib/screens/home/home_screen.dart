@@ -159,14 +159,14 @@ class _HeroHome extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      height: 58,
-                      width: 58,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(.14),
-                        borderRadius: BorderRadius.circular(18),
+                   ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 58,
+                        width: 58,
+                        fit: BoxFit.cover,
                       ),
-                      child: const Icon(Icons.checkroom_rounded, color: Colors.white, size: 32),
                     ),
                     const SizedBox(height: 18),
                     const Text(
@@ -226,7 +226,12 @@ class _HeroHome extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const Icon(Icons.sports_soccer_rounded, color: Colors.white, size: 86),
+                   Image.asset(
+                      'assets/images/logo.png',
+                      height: 120,
+                      width: 120,
+                      fit: BoxFit.contain,
+                    ),
                   ],
                 ),
               ),
