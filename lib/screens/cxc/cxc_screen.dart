@@ -18,6 +18,37 @@ class _CxcScreenState extends State<CxcScreen> {
   String filtro = 'pendientes';
   String search = '';
 
+ Future<void> eliminarCredito(OrderItem item) async {
+    if (!item.manual) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.panel,
+        title: const Text('Eliminar crédito'),
+        content: Text('¿Eliminar el crédito de ${item.clienteNombre}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await repo.deleteItem(item);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Crédito eliminado')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   Future<void> pay(OrderItem item) async {
     await showDialog(
       context: context,
@@ -99,9 +130,14 @@ class _CxcScreenState extends State<CxcScreen> {
           const SizedBox(height: 16),
           StreamBuilder<List<OrderItem>>(
             stream: repo.streamAllItems(),
-            builder: (context, snap) {
-              var items = snap.data ?? [];
-
+            builder: (context, snapPedidos) {
+              return StreamBuilder<List<OrderItem>>(
+                stream: repo.streamCxcItems(),
+                builder: (context, snapCreditos) {
+                  var items = <OrderItem>[
+                    ...(snapPedidos.data ?? <OrderItem>[]),
+                    ...(snapCreditos.data ?? <OrderItem>[]),
+                  ];
               items = items.where((x) {
                 final q = '${x.clienteNombre} ${x.nombreNumero} ${x.version}'.toLowerCase();
                 final okSearch = q.contains(search);
@@ -145,16 +181,20 @@ class _CxcScreenState extends State<CxcScreen> {
                           item: x,
                           onPay: () => pay(x),
                           onHistory: () => historialCredito(x),
+                          onDelete: () => eliminarCredito(x),
                         );
                       }).toList(),
                     )
                   else
-                    _CxcTable(
+                   _CxcTable(
                       items: items,
                       onPay: pay,
                       onHistory: historialCredito,
+                      onDelete: eliminarCredito,
                     ),
                 ],
+              );
+          },
               );
             },
           ),
@@ -168,11 +208,13 @@ class _CxcTable extends StatelessWidget {
   final List<OrderItem> items;
   final void Function(OrderItem item) onPay;
   final void Function(OrderItem item) onHistory;
+  final void Function(OrderItem item) onDelete;
 
   const _CxcTable({
     required this.items,
     required this.onPay,
     required this.onHistory,
+    required this.onDelete,
   });
 
   @override
@@ -254,6 +296,12 @@ class _CxcTable extends StatelessWidget {
                                 onPressed: () => onHistory(x),
                                 child: const Text('Historial'),
                               ),
+                              if (x.manual)
+                                OutlinedButton(
+                                  onPressed: () => onDelete(x),
+                                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
+                                  child: const Text('Eliminar'),
+                                ),
                             ],
                           ),
                         ),
@@ -274,11 +322,13 @@ class _CxcMobileCard extends StatelessWidget {
   final OrderItem item;
   final VoidCallback onPay;
   final VoidCallback onHistory;
+  final VoidCallback onDelete;
 
   const _CxcMobileCard({
     required this.item,
     required this.onPay,
     required this.onHistory,
+    required this.onDelete,
   });
 
   @override
@@ -322,6 +372,13 @@ class _CxcMobileCard extends StatelessWidget {
                 icon: const Icon(Icons.history_rounded),
                 label: const Text('Historial'),
               ),
+              if (item.manual)
+                OutlinedButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_rounded, color: AppTheme.danger),
+                  label: const Text('Eliminar'),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
+                ),
             ],
           ),
         ],

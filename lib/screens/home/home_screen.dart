@@ -159,8 +159,7 @@ class _HeroHome extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                   ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
+                   ClipOval(
                       child: Image.asset(
                         'assets/images/logo.png',
                         height: 58,
@@ -226,11 +225,13 @@ class _HeroHome extends StatelessWidget {
                         ),
                       ),
                     ),
-                   Image.asset(
-                      'assets/images/logo.png',
-                      height: 120,
-                      width: 120,
-                      fit: BoxFit.contain,
+                  ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 120,
+                        width: 120,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ],
                 ),
