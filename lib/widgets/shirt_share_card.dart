@@ -10,12 +10,14 @@ import '../models/order_item.dart';
 class ShirtShareCard extends StatelessWidget {
   final OrderItem item;
   final Uint8List? mainImageBytes;
+  final String? mainImageError;
   final List<Uint8List> patchImageBytes;
 
   const ShirtShareCard({
     super.key,
     required this.item,
     required this.mainImageBytes,
+    this.mainImageError,
     required this.patchImageBytes,
   });
 
@@ -34,14 +36,15 @@ class ShirtShareCard extends StatelessWidget {
     final nombre = nombres.isEmpty ? 'Sin nombre' : nombres.join(' ');
 
     return Container(
-      width: 480,
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: const BoxDecoration(color: AppTheme.bg),
       child: Container(
-        padding: const EdgeInsets.all(22),
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: AppTheme.panel,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppTheme.border),
         ),
         child: Column(
@@ -50,23 +53,26 @@ class ShirtShareCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: AppTheme.accent.withOpacity(.16),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.checkroom_rounded, color: AppTheme.accent, size: 22),
+                  child: const Icon(Icons.checkroom_rounded, color: AppTheme.accent, size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 const Expanded(
                   child: Text(
                     'Confirmación de camisa',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppTheme.panel2,
                     borderRadius: BorderRadius.circular(999),
@@ -74,32 +80,52 @@ class ShirtShareCard extends StatelessWidget {
                   ),
                   child: Text(
                     version,
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.panel2,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppTheme.border),
               ),
               clipBehavior: Clip.antiAlias,
               child: AspectRatio(
                 aspectRatio: 1,
                 child: mainImageBytes == null
-                    ? const Center(
-                        child: Icon(Icons.image_rounded, color: AppTheme.muted, size: 40),
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.image_not_supported_rounded, color: AppTheme.muted, size: 32),
+                              if (mainImageError != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  mainImageError!,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: AppTheme.danger, fontSize: 10),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       )
                     : Image.memory(mainImageBytes!, fit: BoxFit.cover),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _Pill(title: 'Cliente', value: cliente),
                 _Pill(title: 'Talla', value: talla),
@@ -109,19 +135,19 @@ class ShirtShareCard extends StatelessWidget {
               ],
             ),
             if (patchImageBytes.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              const Text('Parches', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
+              const Text('Parches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: patchImageBytes.map((bytes) {
                   return Container(
-                    width: 72,
-                    height: 72,
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
                       color: AppTheme.panel2,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppTheme.border),
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -130,10 +156,10 @@ class ShirtShareCard extends StatelessWidget {
                 }).toList(),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Text(
               'Generado ${Formatters.date(DateTime.now())} · Por favor confirmá que esta info sea correcta.',
-              style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+              style: const TextStyle(color: AppTheme.muted, fontSize: 11),
             ),
           ],
         ),
@@ -151,23 +177,24 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 130, maxWidth: 210),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.panel2,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title, style: const TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 5),
+          Text(title, style: const TextStyle(color: AppTheme.muted, fontSize: 11, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
           Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
           ),
         ],
       ),

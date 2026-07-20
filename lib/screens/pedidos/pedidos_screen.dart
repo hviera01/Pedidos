@@ -2788,6 +2788,7 @@ class _ShareItemImageDialogState extends State<_ShareItemImageDialog> {
   bool loading = true;
   bool sharing = false;
   Uint8List? mainBytes;
+  String? mainError;
   List<Uint8List> patchBytes = [];
 
   @override
@@ -2804,8 +2805,11 @@ class _ShareItemImageDialogState extends State<_ShareItemImageDialog> {
 
     if (!mounted) return;
 
+    final main = results[0] as Uint8List?;
+
     setState(() {
-      mainBytes = results[0] as Uint8List?;
+      mainBytes = main;
+      mainError = main == null ? ImageBytesService.lastError(widget.item.imgPrincipalUrl) : null;
       patchBytes = (results[1] as List<Uint8List?>).whereType<Uint8List>().toList();
       loading = false;
     });
@@ -2850,7 +2854,7 @@ class _ShareItemImageDialogState extends State<_ShareItemImageDialog> {
       backgroundColor: AppTheme.panel,
       title: const Text('Compartir imagen'),
       content: SizedBox(
-        width: 520,
+        width: (MediaQuery.of(context).size.width - 80).clamp(240, 420),
         child: loading
             ? const SizedBox(
                 height: 220,
@@ -2862,6 +2866,7 @@ class _ShareItemImageDialogState extends State<_ShareItemImageDialog> {
                   child: ShirtShareCard(
                     item: widget.item,
                     mainImageBytes: mainBytes,
+                    mainImageError: mainError,
                     patchImageBytes: patchBytes,
                   ),
                 ),

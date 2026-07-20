@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/order_item.dart';
 import '../models/pdf_field_options.dart';
+import 'image_bytes_service.dart';
 
 class PedidoPdfService {
   static Future<Uint8List> build({
@@ -79,7 +80,14 @@ class PedidoPdfService {
               ),
               child: mainBytes == null
                   ? pw.Center(
-                      child: pw.Text('Sin imagen', style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9)),
+                      child: pw.Padding(
+                        padding: const pw.EdgeInsets.all(4),
+                        child: pw.Text(
+                          'Sin imagen${_shortError(item.imgPrincipalUrl)}',
+                          textAlign: pw.TextAlign.center,
+                          style: const pw.TextStyle(color: PdfColors.red400, fontSize: 7),
+                        ),
+                      ),
                     )
                   : pw.ClipRRect(
                       horizontalRadius: 8,
@@ -122,6 +130,13 @@ class PedidoPdfService {
         ],
       ),
     );
+  }
+
+  static String _shortError(String rawUrl) {
+    final error = ImageBytesService.lastError(rawUrl);
+    if (error == null || error.trim().isEmpty) return '';
+    final short = error.length > 60 ? '${error.substring(0, 60)}...' : error;
+    return '\n$short';
   }
 
   static pw.Widget _field(String label, String value) {
