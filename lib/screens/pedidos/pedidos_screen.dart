@@ -1,14 +1,22 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/order_item.dart';
 import '../../models/customer.dart';
+import '../../models/pdf_field_options.dart';
 import '../../repositories/customer_repository.dart';
 import '../../repositories/order_repository.dart';
+import '../../services/image_bytes_service.dart';
+import '../../services/pedido_pdf_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/page_frame.dart';
+import '../../widgets/shirt_share_card.dart';
 import '../../widgets/smart_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,6 +127,68 @@ class _PedidosScreenState extends State<PedidosScreen> {
       context: context,
       builder: (_) => _PayDialog(item: item),
     );
+  }
+
+  Future<void> shareItemImage(OrderItem item) async {
+    await showDialog(
+      context: context,
+      builder: (_) => _ShareItemImageDialog(item: item),
+    );
+  }
+
+  Future<void> sharePedidoPdf() async {
+    final fields = await showDialog<PdfFieldOptions>(
+      context: context,
+      builder: (_) => const _PdfFieldsDialog(),
+    );
+
+    if (fields == null || !mounted) return;
+
+    final pid = selectedPedidoId ?? await repo.getOrCreateActiveOrder();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Generando PDF...'), duration: Duration(seconds: 20)),
+    );
+
+    try {
+      final items = await repo.getOrderItemsOnce(pid);
+
+      final imageBytes = <String, Uint8List?>{};
+
+      if (fields.imagenPrincipal || fields.parches) {
+        final urls = <String>{};
+
+        if (fields.imagenPrincipal) {
+          urls.addAll(items.map((x) => x.imgPrincipalUrl).where((x) => x.trim().isNotEmpty));
+        }
+
+        if (fields.parches) {
+          urls.addAll(items.expand((x) => x.imgsParchesUrl).where((x) => x.trim().isNotEmpty));
+        }
+
+        final fetched = await Future.wait(urls.map((u) async {
+          return MapEntry(u, await ImageBytesService.fetch(u));
+        }));
+
+        imageBytes.addEntries(fetched);
+      }
+
+      final bytes = await PedidoPdfService.build(
+        items: items,
+        fields: fields,
+        imageBytes: imageBytes,
+      );
+
+      messenger.hideCurrentSnackBar();
+
+      await Printing.sharePdf(bytes: bytes, filename: 'pedido_$pid.pdf');
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo generar el PDF: $e')));
+    }
   }
 
   Future<void> openHistory() async {
@@ -312,6 +382,11 @@ Widget build(BuildContext context) {
               label: const Text('Compartir'),
             ),
             OutlinedButton.icon(
+              onPressed: sharePedidoPdf,
+              icon: const Icon(Icons.picture_as_pdf_rounded),
+              label: const Text('Compartir PDF'),
+            ),
+            OutlinedButton.icon(
               onPressed: openHistory,
               icon: const Icon(Icons.history_rounded),
               label: const Text('Historial'),
@@ -413,6 +488,11 @@ Widget build(BuildContext context) {
                               label: const Text('Compartir'),
                             ),
                             OutlinedButton.icon(
+                              onPressed: sharePedidoPdf,
+                              icon: const Icon(Icons.picture_as_pdf_rounded),
+                              label: const Text('Compartir PDF'),
+                            ),
+                            OutlinedButton.icon(
                               onPressed: openHistory,
                               icon: const Icon(Icons.history_rounded),
                               label: const Text('Historial'),
@@ -456,6 +536,7 @@ Widget build(BuildContext context) {
 
                 return RepaintBoundary(
                   child: _MobileOrderCard(
+                    onShareImage: () => shareItemImage(item),
                     index: index - 1,
                     item: item,
                     onEdit: () => openForm(item),
@@ -530,6 +611,7 @@ Widget build(BuildContext context) {
                 onImages: openImages,
                 onPay: openPay,
                 onDelete: deleteItem,
+                onShareImage: shareItemImage,
               )
             else
               _DesktopOrderTable(
@@ -538,6 +620,7 @@ Widget build(BuildContext context) {
                 onImages: openImages,
                 onPay: openPay,
                 onDelete: deleteItem,
+                onShareImage: shareItemImage,
               ),
           ],
         );
@@ -691,6 +774,7 @@ class _DesktopOrderTable extends StatelessWidget {
   final void Function(OrderItem item) onImages;
   final void Function(OrderItem item) onPay;
   final void Function(OrderItem item) onDelete;
+  final void Function(OrderItem item) onShareImage;
 
   const _DesktopOrderTable({
     required this.items,
@@ -698,6 +782,7 @@ class _DesktopOrderTable extends StatelessWidget {
     required this.onImages,
     required this.onPay,
     required this.onDelete,
+    required this.onShareImage,
   });
 
   @override
@@ -729,6 +814,7 @@ class _DesktopOrderTable extends StatelessWidget {
                       onImages: () => onImages(e.value),
                       onPay: () => onPay(e.value),
                       onDelete: () => onDelete(e.value),
+                      onShareImage: () => onShareImage(e.value),
                     );
                   }),
                 ],
@@ -747,6 +833,7 @@ class _DesktopOrderCards extends StatelessWidget {
   final void Function(OrderItem item) onImages;
   final void Function(OrderItem item) onPay;
   final void Function(OrderItem item) onDelete;
+  final void Function(OrderItem item) onShareImage;
 
   const _DesktopOrderCards({
     required this.items,
@@ -754,6 +841,7 @@ class _DesktopOrderCards extends StatelessWidget {
     required this.onImages,
     required this.onPay,
     required this.onDelete,
+    required this.onShareImage,
   });
 
   @override
@@ -767,6 +855,7 @@ class _DesktopOrderCards extends StatelessWidget {
           onImages: () => onImages(entry.value),
           onPay: () => onPay(entry.value),
           onDelete: () => onDelete(entry.value),
+          onShareImage: () => onShareImage(entry.value),
         );
       }).toList(),
     );
@@ -780,6 +869,7 @@ class _DesktopOrderCard extends StatelessWidget {
   final VoidCallback onImages;
   final VoidCallback onPay;
   final VoidCallback onDelete;
+  final VoidCallback onShareImage;
 
   const _DesktopOrderCard({
     required this.index,
@@ -788,6 +878,7 @@ class _DesktopOrderCard extends StatelessWidget {
     required this.onImages,
     required this.onPay,
     required this.onDelete,
+    required this.onShareImage,
   });
 
   @override
@@ -883,6 +974,7 @@ final nombre = nombres.isEmpty ? 'Sin nombre' : nombres.join(' ');
                         if (value == 'images') onImages();
                         if (value == 'pay') onPay();
                         if (value == 'delivered') OrderRepository().setDelivered(item, !item.entregado);
+                        if (value == 'shareImage') onShareImage();
                         if (value == 'delete') onDelete();
                       },
                       itemBuilder: (context) => [
@@ -890,6 +982,7 @@ final nombre = nombres.isEmpty ? 'Sin nombre' : nombres.join(' ');
                         const PopupMenuItem(value: 'images', child: Text('Imágenes')),
                         const PopupMenuItem(value: 'pay', child: Text('Abonar')),
                         PopupMenuItem(value: 'delivered', child: Text(item.entregado ? 'Marcar pendiente' : 'Marcar entregado')),
+                        const PopupMenuItem(value: 'shareImage', child: Text('Compartir imagen')),
                         const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                       ],
                     ),
@@ -1022,6 +1115,7 @@ class _TableRowItem extends StatelessWidget {
   final VoidCallback onImages;
   final VoidCallback onPay;
   final VoidCallback onDelete;
+  final VoidCallback onShareImage;
 
   const _TableRowItem({
     required this.index,
@@ -1030,6 +1124,7 @@ class _TableRowItem extends StatelessWidget {
     required this.onImages,
     required this.onPay,
     required this.onDelete,
+    required this.onShareImage,
   });
 
   @override
@@ -1127,6 +1222,7 @@ class _TableRowItem extends StatelessWidget {
         if (value == 'edit') onEdit();
         if (value == 'images') onImages();
         if (value == 'pay') onPay();
+        if (value == 'shareImage') onShareImage();
         if (value == 'delete') onDelete();
       },
       itemBuilder: (context) => [
@@ -1157,6 +1253,16 @@ class _TableRowItem extends StatelessWidget {
               Icon(Icons.payments_rounded, size: 18),
               SizedBox(width: 10),
               Text('Abonar'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'shareImage',
+          child: Row(
+            children: [
+              Icon(Icons.ios_share_rounded, size: 18),
+              SizedBox(width: 10),
+              Text('Compartir imagen'),
             ],
           ),
         ),
@@ -1250,6 +1356,7 @@ class _MobileOrderCard extends StatelessWidget {
   final VoidCallback onImages;
   final VoidCallback onPay;
   final VoidCallback onDelete;
+  final VoidCallback onShareImage;
 
   const _MobileOrderCard({
     required this.index,
@@ -1258,6 +1365,7 @@ class _MobileOrderCard extends StatelessWidget {
     required this.onImages,
     required this.onPay,
     required this.onDelete,
+    required this.onShareImage,
   });
 
   @override
@@ -1352,20 +1460,19 @@ class _MobileOrderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onPay,
-                  icon: const Icon(Icons.payments_rounded, size: 18),
-                  label: const Text('Abonar'),
-                ),
+              FilledButton.icon(
+                onPressed: onPay,
+                icon: const Icon(Icons.payments_rounded, size: 18),
+                label: const Text('Abonar'),
               ),
-              const SizedBox(width: 8),
               _RoundMobileButton(icon: Icons.edit_rounded, onPressed: onEdit),
-              const SizedBox(width: 8),
               _RoundMobileButton(icon: Icons.image_rounded, onPressed: onImages),
-              const SizedBox(width: 8),
+              _RoundMobileButton(icon: Icons.ios_share_rounded, onPressed: onShareImage),
               _RoundMobileButton(icon: Icons.delete_rounded, color: AppTheme.danger, onPressed: onDelete),
             ],
           ),
@@ -2663,6 +2770,219 @@ class _EmptyState extends StatelessWidget {
           Text('Agregá la primera camisa para iniciar el pedido.', style: TextStyle(color: AppTheme.muted)),
         ],
       ),
+    );
+  }
+}
+
+class _ShareItemImageDialog extends StatefulWidget {
+  final OrderItem item;
+
+  const _ShareItemImageDialog({required this.item});
+
+  @override
+  State<_ShareItemImageDialog> createState() => _ShareItemImageDialogState();
+}
+
+class _ShareItemImageDialogState extends State<_ShareItemImageDialog> {
+  final _boundaryKey = GlobalKey();
+  bool loading = true;
+  bool sharing = false;
+  Uint8List? mainBytes;
+  List<Uint8List> patchBytes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final results = await Future.wait([
+      ImageBytesService.fetch(widget.item.imgPrincipalUrl),
+      Future.wait(widget.item.imgsParchesUrl.map((u) => ImageBytesService.fetch(u))),
+    ]);
+
+    if (!mounted) return;
+
+    setState(() {
+      mainBytes = results[0] as Uint8List?;
+      patchBytes = (results[1] as List<Uint8List?>).whereType<Uint8List>().toList();
+      loading = false;
+    });
+  }
+
+  Future<void> share() async {
+    if (sharing) return;
+
+    setState(() => sharing = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      final boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+
+      final safeName = widget.item.nombreNumero.trim().isEmpty ? 'camisa' : widget.item.nombreNumero.trim();
+
+      await Share.shareXFiles(
+        [XFile.fromData(bytes, name: 'camisa_$safeName.png', mimeType: 'image/png')],
+        text: 'Camisa para confirmación',
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo compartir: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppTheme.panel,
+      title: const Text('Compartir imagen'),
+      content: SizedBox(
+        width: 520,
+        child: loading
+            ? const SizedBox(
+                height: 220,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : SingleChildScrollView(
+                child: RepaintBoundary(
+                  key: _boundaryKey,
+                  child: ShirtShareCard(
+                    item: widget.item,
+                    mainImageBytes: mainBytes,
+                    patchImageBytes: patchBytes,
+                  ),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: sharing ? null : () => Navigator.pop(context),
+          child: const Text('Cerrar'),
+        ),
+        FilledButton.icon(
+          onPressed: loading || sharing ? null : share,
+          icon: sharing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.ios_share_rounded),
+          label: const Text('Compartir'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PdfFieldsDialog extends StatefulWidget {
+  const _PdfFieldsDialog();
+
+  @override
+  State<_PdfFieldsDialog> createState() => _PdfFieldsDialogState();
+}
+
+class _PdfFieldsDialogState extends State<_PdfFieldsDialog> {
+  static const _prefsKey = 'pdf_fields_v1';
+  PdfFieldOptions options = PdfFieldOptions.defaults();
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefsKey);
+
+    if (!mounted) return;
+
+    setState(() {
+      if (raw != null) options = PdfFieldOptions.fromJson(raw);
+      loading = false;
+    });
+  }
+
+  Future<void> confirm() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, options.toJson());
+
+    if (!mounted) return;
+    Navigator.pop(context, options);
+  }
+
+  Widget checkbox(String label, bool value, void Function(bool) onChanged) {
+    return CheckboxListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      activeColor: AppTheme.accent,
+      title: Text(label),
+      value: value,
+      onChanged: (v) => setState(() => onChanged(v ?? false)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppTheme.panel,
+      title: const Text('Compartir PDF del pedido'),
+      content: SizedBox(
+        width: 420,
+        child: loading
+            ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Elegí qué campos incluir en el PDF:', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    checkbox('Imagen principal', options.imagenPrincipal, (v) => options = options.copyWith(imagenPrincipal: v)),
+                    checkbox('Parches', options.parches, (v) => options = options.copyWith(parches: v)),
+                    checkbox('Cliente', options.cliente, (v) => options = options.copyWith(cliente: v)),
+                    checkbox('Versión', options.version, (v) => options = options.copyWith(version: v)),
+                    checkbox('Talla', options.talla, (v) => options = options.copyWith(talla: v)),
+                    checkbox('Nombre y número', options.nombreNumero, (v) => options = options.copyWith(nombreNumero: v)),
+                    checkbox('Cantidad', options.cantidad, (v) => options = options.copyWith(cantidad: v)),
+                    checkbox('Estado (entregado/pendiente)', options.estado, (v) => options = options.copyWith(estado: v)),
+                    const Divider(color: AppTheme.border),
+                    const Text('Dinero:', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
+                    checkbox('Precio unitario', options.precioUnit, (v) => options = options.copyWith(precioUnit: v)),
+                    checkbox('Total venta', options.totalVenta, (v) => options = options.copyWith(totalVenta: v)),
+                    checkbox('Pagado', options.pagado, (v) => options = options.copyWith(pagado: v)),
+                    checkbox('Debe', options.debe, (v) => options = options.copyWith(debe: v)),
+                  ],
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton.icon(
+          onPressed: loading ? null : confirm,
+          icon: const Icon(Icons.picture_as_pdf_rounded),
+          label: const Text('Generar PDF'),
+        ),
+      ],
     );
   }
 }
