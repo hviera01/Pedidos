@@ -27,13 +27,7 @@ class ShirtShareCard extends StatelessWidget {
     final talla = item.talla.trim().isEmpty ? 'Sin talla' : item.talla.trim();
     final cantidad = item.cantidad <= 0 ? 1 : item.cantidad;
     final cliente = item.clienteNombre.trim().isEmpty ? 'Sin cliente' : item.clienteNombre.trim();
-
-    final nombreNumero = item.nombreNumero.trim();
-    final parts = nombreNumero.split(RegExp(r'\s+')).where((x) => x.trim().isNotEmpty).toList();
-    final numeros = parts.where((x) => RegExp(r'\d').hasMatch(x)).toList();
-    final nombres = parts.where((x) => !RegExp(r'\d').hasMatch(x)).toList();
-    final numero = numeros.isEmpty ? 'No especificado' : numeros.join(' ');
-    final nombre = nombres.isEmpty ? 'Sin nombre' : nombres.join(' ');
+    final nombreNumero = item.nombreNumero.trim().isEmpty ? 'No especificado' : item.nombreNumero.trim();
 
     return Container(
       width: double.infinity,
@@ -123,17 +117,17 @@ class ShirtShareCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            Row(
               children: [
-                _Pill(title: 'Cliente', value: cliente),
-                _Pill(title: 'Talla', value: talla),
-                _Pill(title: 'Cantidad', value: '$cantidad'),
-                _Pill(title: 'Nombre', value: nombre),
-                _Pill(title: 'Número', value: numero),
+                Expanded(child: _Pill(title: 'Talla', value: talla)),
+                const SizedBox(width: 8),
+                Expanded(child: _Pill(title: 'Cantidad', value: '$cantidad')),
               ],
             ),
+            const SizedBox(height: 8),
+            _Pill(title: 'Nombre / Número', value: nombreNumero, fullWidth: true),
+            const SizedBox(height: 8),
+            _Pill(title: 'Cliente', value: cliente, fullWidth: true),
             if (patchImageBytes.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text('Parches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
@@ -171,13 +165,14 @@ class ShirtShareCard extends StatelessWidget {
 class _Pill extends StatelessWidget {
   final String title;
   final String value;
+  final bool fullWidth;
 
-  const _Pill({required this.title, required this.value});
+  const _Pill({required this.title, required this.value, this.fullWidth = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
+      width: fullWidth ? double.infinity : null,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.panel2,
