@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../core/utils/formatters.dart';
 import '../models/order_item.dart';
 import '../models/pdf_field_options.dart';
 
@@ -31,7 +30,6 @@ class PedidoPdfService {
         },
         build: (context) => [
           for (var i = 0; i < items.length; i++) _itemBlock(i + 1, items[i], fields, imageBytes),
-          if (fields.anyMoney) _totalsBlock(items, fields),
         ],
       ),
     );
@@ -59,10 +57,6 @@ class PedidoPdfService {
     if (fields.nombreNumero) rows.add(_field('Nombre / Número', item.nombreNumero.trim().isEmpty ? '-' : item.nombreNumero.trim()));
     if (fields.cantidad) rows.add(_field('Cantidad', '${item.cantidad <= 0 ? 1 : item.cantidad}'));
     if (fields.estado) rows.add(_field('Estado', item.entregado ? 'Entregado' : 'Pendiente'));
-    if (fields.precioUnit) rows.add(_field('Precio unitario', Formatters.money(item.precioUnit)));
-    if (fields.totalVenta) rows.add(_field('Total', Formatters.money(item.totalVenta)));
-    if (fields.pagado) rows.add(_field('Pagado', Formatters.money(item.pagado)));
-    if (fields.debe) rows.add(_field('Debe', Formatters.money(item.debe)));
 
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 14),
@@ -77,16 +71,21 @@ class PedidoPdfService {
           if (fields.imagenPrincipal)
             pw.Container(
               width: 110,
-              height: 100,
-              alignment: pw.Alignment.center,
+              height: 110,
               margin: const pw.EdgeInsets.only(right: 12),
               decoration: pw.BoxDecoration(
                 color: PdfColors.grey100,
                 borderRadius: pw.BorderRadius.circular(8),
               ),
               child: mainBytes == null
-                  ? pw.Text('Sin imagen', style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9))
-                  : pw.Image(pw.MemoryImage(mainBytes), fit: pw.BoxFit.contain),
+                  ? pw.Center(
+                      child: pw.Text('Sin imagen', style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9)),
+                    )
+                  : pw.ClipRRect(
+                      horizontalRadius: 8,
+                      verticalRadius: 8,
+                      child: pw.Image(pw.MemoryImage(mainBytes), width: 110, height: 110, fit: pw.BoxFit.cover),
+                    ),
             ),
           pw.Expanded(
             child: pw.Column(
@@ -104,12 +103,15 @@ class PedidoPdfService {
                       return pw.Container(
                         width: 46,
                         height: 46,
-                        alignment: pw.Alignment.center,
                         decoration: pw.BoxDecoration(
                           color: PdfColors.grey100,
                           borderRadius: pw.BorderRadius.circular(6),
                         ),
-                        child: pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
+                        child: pw.ClipRRect(
+                          horizontalRadius: 6,
+                          verticalRadius: 6,
+                          child: pw.Image(pw.MemoryImage(bytes), width: 46, height: 46, fit: pw.BoxFit.cover),
+                        ),
                       );
                     }).toList(),
                   ),
@@ -134,31 +136,6 @@ class PedidoPdfService {
           pw.Expanded(
             child: pw.Text(value, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
           ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _totalsBlock(List<OrderItem> items, PdfFieldOptions fields) {
-    final total = items.fold<double>(0, (a, b) => a + b.totalVenta);
-    final pagado = items.fold<double>(0, (a, b) => a + b.pagado);
-    final debe = items.fold<double>(0, (a, b) => a + b.debe);
-
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 8),
-      padding: const pw.EdgeInsets.all(14),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text('Totales del pedido', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 6),
-          if (fields.totalVenta) _field('Total', Formatters.money(total)),
-          if (fields.pagado) _field('Pagado', Formatters.money(pagado)),
-          if (fields.debe) _field('Debe', Formatters.money(debe)),
         ],
       ),
     );

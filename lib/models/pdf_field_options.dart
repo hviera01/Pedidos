@@ -9,10 +9,6 @@ class PdfFieldOptions {
   final bool estado;
   final bool imagenPrincipal;
   final bool parches;
-  final bool precioUnit;
-  final bool totalVenta;
-  final bool pagado;
-  final bool debe;
 
   const PdfFieldOptions({
     required this.cliente,
@@ -23,10 +19,6 @@ class PdfFieldOptions {
     required this.estado,
     required this.imagenPrincipal,
     required this.parches,
-    required this.precioUnit,
-    required this.totalVenta,
-    required this.pagado,
-    required this.debe,
   });
 
   factory PdfFieldOptions.defaults() {
@@ -39,14 +31,8 @@ class PdfFieldOptions {
       estado: true,
       imagenPrincipal: true,
       parches: true,
-      precioUnit: true,
-      totalVenta: true,
-      pagado: true,
-      debe: true,
     );
   }
-
-  bool get anyMoney => precioUnit || totalVenta || pagado || debe;
 
   PdfFieldOptions copyWith({
     bool? cliente,
@@ -57,10 +43,6 @@ class PdfFieldOptions {
     bool? estado,
     bool? imagenPrincipal,
     bool? parches,
-    bool? precioUnit,
-    bool? totalVenta,
-    bool? pagado,
-    bool? debe,
   }) {
     return PdfFieldOptions(
       cliente: cliente ?? this.cliente,
@@ -71,10 +53,6 @@ class PdfFieldOptions {
       estado: estado ?? this.estado,
       imagenPrincipal: imagenPrincipal ?? this.imagenPrincipal,
       parches: parches ?? this.parches,
-      precioUnit: precioUnit ?? this.precioUnit,
-      totalVenta: totalVenta ?? this.totalVenta,
-      pagado: pagado ?? this.pagado,
-      debe: debe ?? this.debe,
     );
   }
 
@@ -88,10 +66,6 @@ class PdfFieldOptions {
       'estado': estado,
       'imagenPrincipal': imagenPrincipal,
       'parches': parches,
-      'precioUnit': precioUnit,
-      'totalVenta': totalVenta,
-      'pagado': pagado,
-      'debe': debe,
     };
   }
 
@@ -112,10 +86,6 @@ class PdfFieldOptions {
       estado: flag('estado', d.estado),
       imagenPrincipal: flag('imagenPrincipal', d.imagenPrincipal),
       parches: flag('parches', d.parches),
-      precioUnit: flag('precioUnit', d.precioUnit),
-      totalVenta: flag('totalVenta', d.totalVenta),
-      pagado: flag('pagado', d.pagado),
-      debe: flag('debe', d.debe),
     );
   }
 

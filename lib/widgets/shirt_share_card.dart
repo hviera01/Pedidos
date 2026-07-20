@@ -81,18 +81,19 @@ class ShirtShareCard extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Container(
-              width: double.infinity,
-              height: 260,
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.panel2,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppTheme.border),
               ),
-              child: Center(
+              clipBehavior: Clip.antiAlias,
+              child: AspectRatio(
+                aspectRatio: 1,
                 child: mainImageBytes == null
-                    ? const Icon(Icons.image_rounded, color: AppTheme.muted, size: 40)
-                    : Image.memory(mainImageBytes!, fit: BoxFit.contain),
+                    ? const Center(
+                        child: Icon(Icons.image_rounded, color: AppTheme.muted, size: 40),
+                      )
+                    : Image.memory(mainImageBytes!, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 18),
@@ -118,13 +119,13 @@ class ShirtShareCard extends StatelessWidget {
                   return Container(
                     width: 72,
                     height: 72,
-                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: AppTheme.panel2,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppTheme.border),
                     ),
-                    child: Image.memory(bytes, fit: BoxFit.contain),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.memory(bytes, fit: BoxFit.cover),
                   );
                 }).toList(),
               ),

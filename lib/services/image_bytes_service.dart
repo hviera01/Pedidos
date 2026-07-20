@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
@@ -9,7 +11,12 @@ class ImageBytesService {
   static Future<Uint8List?> fetch(String rawUrl) {
     final key = rawUrl.trim();
     if (key.isEmpty) return Future.value(null);
-    return _cache.putIfAbsent(key, () => _fetchInternal(key));
+
+    return _cache.putIfAbsent(key, () async {
+      final result = await _fetchInternal(key);
+      if (result == null) _cache.remove(key);
+      return result;
+    });
   }
 
   static Future<Uint8List?> _fetchInternal(String rawUrl) async {
@@ -27,9 +34,21 @@ class ImageBytesService {
       }
 
       final response = await http.get(Uri.parse(resolved));
-      if (response.statusCode != 200) return null;
+
+      if (response.statusCode != 200) {
+        developer.log(
+          'ImageBytesService: HTTP ${response.statusCode} al descargar $resolved',
+          name: 'ImageBytesService',
+        );
+        return null;
+      }
+
       return response.bodyBytes;
-    } catch (_) {
+    } catch (e) {
+      developer.log(
+        'ImageBytesService: no se pudo descargar $rawUrl: $e',
+        name: 'ImageBytesService',
+      );
       return null;
     }
   }
